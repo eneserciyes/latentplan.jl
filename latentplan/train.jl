@@ -1,5 +1,4 @@
-using Images, Interpolations
-using Images.FileIO
+using Images
 using Wandb
 
 using FileIO
