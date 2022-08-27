@@ -1,8 +1,10 @@
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 Knet = "1902f260-5fb4-5aff-8c31-6271790ab950"
+MuJoCo = "93189219-7048-461c-94ec-443a161ed927"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
