@@ -1,8 +1,7 @@
-using Images
-using Wandb
+include("datasets/sequence.jl")
 
-using FileIO
-using CUDA: CUDA, CuArray
-using Knet
+using .Sequence: SequenceDataset
 
-println(CUDA.functional())
+env = "halfcheetah-medium-expert-v2"
+
+dataset = SequenceDataset(env)

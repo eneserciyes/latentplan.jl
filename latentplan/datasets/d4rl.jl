@@ -14,4 +14,13 @@ function load_environment(name::String)
     env
 end
 
+export qlearning_dataset_with_timeouts
+function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end::Bool=false, disable_goal::Bool=false, kwargs...)
+    if dataset === nothing
+        dataset = env.get_dataset(kwargs)
+    end
+    N = dataset["rewards"].shape[0]
+
+
+end
 end

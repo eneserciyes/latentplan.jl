@@ -30,6 +30,10 @@ struct SequenceDataset;
         @printf("[ datasets/sequence ] Sequence length: %d | Step: %d | Max path length: %d\n", sequence_length, step, max_path_length)
         
         env = typeof(env) == String ? load_environment(env) : env
+        print("[ datasets/sequence ] Loading...")
+
+        dataset = qlearning_dataset_with_timeouts(env.unwrapped, terminate_on_end=True, disable_goal=disable_goal)
+
         new(env, sequence_length, step, max_path_length, device, disable_goal)
     end
 end
