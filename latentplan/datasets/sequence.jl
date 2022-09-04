@@ -66,7 +66,7 @@ struct SequenceDataset;
         env = typeof(env) == String ? load_environment(env) : env
         println("[ datasets/sequence ] Loading...")
 
-        dataset = qlearning_dataset_with_timeouts(env.unwrapped, terminate_on_end=true, disable_goal=disable_goal)
+        dataset = qlearning_dataset_with_timeouts(env.unwrapped, terminate_on_end=true, disable_goal=disable_goal, debug=true)
         print('✓')
 
         # TODO: preprocess_fn
@@ -78,9 +78,9 @@ struct SequenceDataset;
         terminals = dataset["terminals"]
         realterminals = dataset["realterminals"]
 
-        obs_mean, obs_std = mean(observations, dims=1), std(observations, dims=1)
-        act_mean, act_std = mean(actions, dims=1), std(actions, dims=1)
-        reward_mean, reward_std = mean(rewards, dims=1), std(rewards, dims=1)
+        obs_mean, obs_std = mean(observations, dims=0), std(observations, dims=0)
+        act_mean, act_std = mean(actions, dims=0), std(actions, dims=0)
+        reward_mean, reward_std = mean(rewards, dims=0), std(rewards, dims=0)
 
         if normalize_raw
             observations = (observations .- obs_mean) ./ obs_std
@@ -89,7 +89,7 @@ struct SequenceDataset;
 
         observations_raw = observations
         actions_raw = actions
-        joined_raw = cat(observations, actions, dims=ndims(observations)) # join at the last dim
+        joined_raw = cat(observations, actions, dims=0) # join at the last dim
         rewards_raw = rewards
         terminals_raw = terminals
 

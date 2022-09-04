@@ -1,6 +1,7 @@
 module D4RL
 
 using PyCall
+using ProgressMeter
 
 d4rl = pyimport("d4rl")
 gym = pyimport("gym")
@@ -15,17 +16,17 @@ function load_environment(name::String)
 end
 
 export qlearning_dataset_with_timeouts
-function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end::Bool=false, disable_goal::Bool=false, kwargs...)
+function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end::Bool=false, disable_goal::Bool=false, debug::Bool=false, kwargs...)
     if dataset === nothing
         dataset = env.get_dataset(;kwargs...)
     end
-    N = size(dataset["rewards"], 1)
-    obs_ = []
-    next_obs_ = []
-    action_ = []
-    reward_ = []
-    done_ = []
-    realdone_ = []
+    N = debug ? 50 : size(dataset["rewards"], 1)
+    obs_ = Vector{Vector{Float32}}(undef, N-1)
+    next_obs_ = Vector{Vector{Float32}}(undef, N-1)
+    action_ = Vector{Vector{Float32}}(undef, N-1)
+    reward_ = Vector{Float32}(undef, N-1)
+    done_ = Vector{Bool}(undef, N-1)
+    realdone_ = Vector{Bool}(undef, N-1)
     if haskey(dataset, "infos/goal")
         # TODO: later
         if !disable_goal
@@ -36,7 +37,7 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
     end
 
     episode_step = 0
-    for i = 1:N-1
+    @showprogress "Generating dataset" for i = 1:N-1
         obs = dataset["observations"][i,:]
         new_obs = dataset["observations"][i+1,:]
         action = dataset["actions"][i,:]
@@ -62,19 +63,26 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
             episode_step=0
         end
 
-        push!(obs_, obs)
-        push!(next_obs_, new_obs)
-        push!(action_, action)
-        push!(reward_, reward)
-        push!(done_, done_bool)
-        push!(realdone_, realdone_bool)
+        obs_[i] = obs
+        next_obs_[i] = new_obs
+        action_[i] = action
+        reward_[i] = reward
+        done_[i] =  done_bool
+        realdone_[i] = realdone_bool
         episode_step += 1
     end
 
+    obs_ = obs_[1:episode_step]
+    next_obs_ = next_obs_[1:episode_step]
+    action_ = action_[1:episode_step]
+    reward_ = reward_[1:episode_step]
+    done_ = done_[1:episode_step]
+    realdone_ = realdone_[1:episode_step]
+
     return Dict(
-        "observations"=>obs_,
-        "actions"=>action_,
-        "next_observations"=>next_obs_,
+        "observations"=>reduce(vcat,obs_),
+        "actions"=>reduce(vcat, action_),
+        "next_observations"=>reduce(vcat, next_obs_),
         "rewards"=> reshape(reward_, :, 1),
         "terminals"=>reshape(done_, :, 1),
         "realterminals"=>reshape(realdone_, :, 1),
