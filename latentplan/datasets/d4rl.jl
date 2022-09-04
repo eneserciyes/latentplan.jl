@@ -37,9 +37,9 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
 
     episode_step = 0
     for i = 1:N-1
-        obs = dataset["observations"][i]
-        new_obs = dataset["observations"][i+1]
-        action = dataset["actions"][i]
+        obs = dataset["observations"][i,:]
+        new_obs = dataset["observations"][i+1,:]
+        action = dataset["actions"][i,:]
         reward = dataset["rewards"][i]
         done_bool = Bool.(dataset["terminals"][i])   
         realdone_bool = Bool.(dataset["terminals"][i])
@@ -51,7 +51,7 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
         end
 
         if i < N
-            done_bool += final_timestep
+            done_bool = Bool(done_bool + final_timestep)
         end
 
         if !terminate_on_end && final_timestep

@@ -28,8 +28,15 @@ function segment(observations, terminals, max_path_length)
     path_lengths = [length(traj) for traj in trajectories]
 
     # pad trajectories to be equal length
-    trajectories_pad = zeros(trajectories[1].dtype)
-end
+    trajectories_pad = zeros(trajectories[1].dtype, (n_trajectories, max_path_length, observation_dim))
+    early_termination = zeros(Bool, (n_trajectories, max_path_length))
+    for (i, traj) in enumerate(trajectories)
+        path_length = path_lengths[i]
+        trajectories_pad[i, 1:path_length] = traj
+        early_termination[i, path_length:end] = 1
+    end
+    return trajectories_pad, early_termination, path_lengths
+end 
 
 struct SequenceDataset;
     env;
@@ -93,12 +100,22 @@ struct SequenceDataset;
 
         println("[ datasets/sequence ] Segmenting...")
         joined_segmented, termination_flags, path_lengths = segment(joined_raw, terminals, max_path_length)
+        rewards_segmented, _, _ = segment(rewards_raw, terminals, max_path_length)
+        println('✓')
 
+        discounts = reshape(discount .^ collect(1:max_path_length), :, 1)
+        values_segmented = zeros(Float32, size(rewards_segmented)...)
+        for t in 1:max_path_length
+            V = sum(rewards_segmented[:, t+1:end] .* discounts[1:end-t-1], dims=2)
+            values_segmented[:, t] = V
+        end
 
         new(env, sequence_length, step, max_path_length, device, disable_goal)
     end
 end
 
 
+env = "halfcheetah-medium-expert-v2"
+dataset = SequenceDataset(env)
 
 end
