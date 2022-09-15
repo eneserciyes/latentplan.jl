@@ -80,9 +80,9 @@ struct SequenceDataset;
         realterminals = dataset["realterminals"]
 
         # TODO: check std differences again
-        obs_mean, obs_std = mean(observations, dims=2)  , std(observations, dims=2)
-        act_mean, act_std = mean(actions, dims=2), std(actions, dims=2)
-        reward_mean, reward_std = mean(rewards), std(rewards)
+        obs_mean, obs_std = mean(observations, dims=2)  , std(observations, dims=2, corrected=false)
+        act_mean, act_std = mean(actions, dims=2), std(actions, dims=2, corrected=false)
+        reward_mean, reward_std = mean(rewards), std(rewards, corrected=false)
 
         if normalize_raw
             observations = (observations .- obs_mean) ./ obs_std
