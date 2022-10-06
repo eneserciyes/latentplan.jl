@@ -116,8 +116,4 @@ struct SequenceDataset;
     end
 end
 
-
-env = "halfcheetah-medium-expert-v2"
-dataset = SequenceDataset(env)
-
 end
