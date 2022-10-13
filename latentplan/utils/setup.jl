@@ -1,6 +1,7 @@
 module Setup
 
 using Configurations: to_dict
+using Knet: seed!
 
 export watch
 function watch(args_to_watch::Vector{Tuple{String, String}})::Function
@@ -30,14 +31,43 @@ function parser(args::Dict{String, Any}; experiment::Union{String, Nothing}=noth
     params = to_dict(read_config(args, experiment))
 
     args = merge(params, args)
-    # TODO: set seed, generate expression name, mkdir and rest
+
+    seed!(args["seed"])
+    make_dir(args)
+    
+    args["task_type"] = "locomotion"
+    args["obs_shape"] = [-1]
+    if occursin("MineRL", args["dataset"])
+        args["task_type"] = "MineRL"
+        args["obs_shape"] = [3, 64, 64]
+    elseif args["dataset"] in ["Breakout", "Pong", "Qbert", "Seaquest"]
+        args["task_type"] = "atari"
+        args["obs_shape"] = [4, 84, 84]
+    end
+
+    return args
+end
+
+function make_dir(args)
+    if haskey(args, "logbase") && haskey(args, "dataset") && haskey(args, "exp_name")
+        args["savepath"] = joinpath(expanduser(args["logbase"]), args["dataset"], args["exp_name"])
+        if haskey(args, "suffix")
+            args["savepath"] = joinpath(args["savepath"], args["suffix"])
+        end
+        try
+            mkdir(args["savepath"])
+        catch e
+            println(args["savepath"], " already exists. Proceeding...")
+        end
+        println("Made directory", args["savepath"])
+    end
 end
 
 
 function read_config(args::Dict{String, Any}, experiment::Union{String, Nothing})
     dataset = replace(args["dataset"], "-" => "_")
     config = args["config"]
-    print("[ utils/setup ] Reading config: $config:$dataset")
+    println("[ utils/setup ] Reading config: $config:$dataset")
     config_module = include(config)
     if hasproperty(config_module, Symbol(dataset))
         params = getproperty(config_module, Symbol(dataset))[experiment]

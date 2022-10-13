@@ -57,8 +57,8 @@ struct SequenceDataset;
     # rewards_raw;
     # terminals_raw;
     # joined_segmented; termin
-    function SequenceDataset(env; sequence_length::Int=250, step::Int=10, 
-        discount::Float64=0.99, max_path_length::Int=1000,
+    function SequenceDataset(env; sequence_length::Int64=250, step::Int64=10, 
+        discount::Float64=0.99, max_path_length::Int64=1000,
         penalty=nothing, device::String="cuda:0", normalize_raw::Bool=true, normalize_reward::Bool=true,
         train_portion::Float64=1.0, disable_goal::Bool=false)
     
@@ -97,7 +97,7 @@ struct SequenceDataset;
 
         if penalty !== nothing #TODO: this should be true, handle args
             terminal_mask = squeeze(realterminals)
-            rewards_raw[terminal_mask] = penalty
+            rewards_raw[terminal_mask] .= penalty
         end
 
         println("[ datasets/sequence ] Segmenting...")
@@ -111,6 +111,7 @@ struct SequenceDataset;
             V = sum(rewards_segmented[:, t+1:end, :] .* discounts[:, 1:end-t], dims=2)
             values_segmented[:, t] = V
         end
+        
 
         new(env, sequence_length, step, max_path_length, device, disable_goal)
     end

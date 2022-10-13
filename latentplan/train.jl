@@ -15,10 +15,6 @@ s = ArgParseSettings()
         help = "name of the experiment"
         arg_type = String
         default = "debug"
-    "--tag"
-        help = "any tag"
-        arg_type = String
-        default = "development"
     "--seed"
         help = "seed"
         arg_type = Int
@@ -29,8 +25,48 @@ s = ArgParseSettings()
         default = "../config/vqvae.jl"
 end
 
+#######################
+######## setup ########
+#######################
+
 super_args = parse_args(ARGS, s)
 args = parser(super_args, experiment="train")
 
+#######################
+####### dataset #######
+#######################
 
-dataset = SequenceDataset(parsed_args["dataset"])
+env_name = occursin("-v", args["dataset"]) ? args["dataset"] : args["dataset"] * "-v0"
+
+# env params
+sequence_length = args["subsampled_sequence_length"] * args["step"]
+args["logbase"] = expanduser(args["logbase"])
+args["savepath"] = expanduser(args["savepath"])
+if !isdir(args["savepath"])
+    mkdir(args["savepath"])
+end
+
+dataset = SequenceDataset(
+    env_name;
+    penalty=args["termination_penalty"], 
+    sequence_length=sequence_length, 
+    step=args["step"], 
+    discount=args["discount"], 
+    disable_goal=args["disable_goal"], 
+    normalize_raw=args["normalize"], 
+    normalize_reward=args["normalize_reward"],
+    max_path_length=args["max_path_length"]
+)
+
+obs_dim = dataset.observation_dim
+act_dim = dataset.action_dim
+if args["task_type"] == "locomotion"
+    transition_dim = obs_dim+act_dim+3
+else
+    transition_dim = 128+act_dim+3
+end
+
+#######################
+######## model ########
+#######################
+
