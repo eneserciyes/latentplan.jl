@@ -51,12 +51,28 @@ struct SequenceDataset;
     obs_mean; obs_std;
     act_mean; act_std;
     reward_mean; reward_std;
-    # observations_raw;
-    # actions_raw;
-    # joined_raw;
-    # rewards_raw;
-    # terminals_raw;
-    # joined_segmented; termin
+    observations_raw;
+    actions_raw;
+    joined_raw;
+    rewards_raw;
+    terminals_raw;
+    joined_segmented; 
+    termination_flags;
+    path_lengths; 
+    rewards_segmented;
+    discount;
+    discounts;
+    values_segmented;
+    values_raw;
+    value_mean; value_std;
+    train_portion;
+    test_portion;
+    indices;
+    test_indices;
+    observation_dim;
+    action_dim;
+    joined_dim;
+
     function SequenceDataset(env; sequence_length::Int64=250, step::Int64=10, 
         discount::Float64=0.99, max_path_length::Int64=1000,
         penalty=nothing, device::String="cuda:0", normalize_raw::Bool=true, normalize_reward::Bool=true,
@@ -151,8 +167,23 @@ struct SequenceDataset;
         action_dim = size(actions, ndims(actions)-1)
         joined_dim = size(joined_raw, ndims(joined_raw)-1)
 
+        ## pad trajectories
+        dim_joined, _, n_trajectories = joined_segmented.shape
+        joined_segmented = cat(joined_segmented, zeros(Float32, dim_joined, sequence_length-1, n_trajectories), dims=2)
+        termination_flags = cat(termination_flags, ones(Bool, sequence_length-1, n_trajectories), dims=1)
 
-        new(env, sequence_length, step, max_path_length, device, disable_goal)
+
+        new(
+            env, sequence_length, step, max_path_length, 
+            device, disable_goal, normalized_raw, normalize_reward, 
+            obs_mean, obs_std, act_mean, act_std, reward_mean, reward_std,
+            observations_raw, actions_raw, joined_raw, rewards_raw, terminals_raw,
+            joined_segmented, termination_flags, termination_flags,
+            path_lengths, rewards_segmented, discount, discounts,
+            values_segmented, values_raw, value_mean, value_std,
+            train_portion, test_portion, indices, test_indices,
+            observation_dim, action_dim, joined_dim
+        )
     end
 end
 
