@@ -111,7 +111,46 @@ struct SequenceDataset;
             V = sum(rewards_segmented[:, t+1:end, :] .* discounts[:, 1:end-t], dims=2)
             values_segmented[:, t] = V
         end
-        
+
+        values_raw = reshape(dropdims(values_segmented, dims=ndims(values_segmented)), :)
+        values_mask = .!reshape(termination_flags, :)
+        values_raw = reshape(values_raw[values_mask], :, 1)
+
+        if normalize_raw && normalize_reward
+            value_mean, value_std = mean(values_raw), std(values_raw)
+            values_raw = (values_raw .- value_mean) ./ value_std
+            rewards_raw = (rewards_raw .- reward_mean) ./ reward_std
+            
+            values_segmented = (values_segmented .- value_mean) ./ value_std
+            rewards_segmented = (rewards_segmented .- reward_mean) ./ rewards_std
+        else
+            value_mean, value_std = 0.0, 1.0
+        end
+
+        joined_raw = cat(joined_raw, rewards_raw, values_raw; dims=1)
+        joined_segmented = cat(joined_segmented, rewards_segmented, values_segmented, dims=1)
+
+        test_portion = 1.0 - train_portion
+
+        ## get valid indices
+        indices = []
+        test_indices = []
+        for (path_ind, l) in enumerate(path_lengths)
+            e = l - 1
+            split = trunc(Int, e * train_portion)
+            for i in 1:split
+                if i < split
+                    push!(indices, (path_ind, i, i+sequence_length))
+                else
+                    push!(test_indices, (path_ind, i, i+sequence_length))
+                end
+            end
+        end
+
+        observation_dim = size(observations, ndims(observations)-1)
+        action_dim = size(actions, ndims(actions)-1)
+        joined_dim = size(joined_raw, ndims(joined_raw)-1)
+
 
         new(env, sequence_length, step, max_path_length, device, disable_goal)
     end
