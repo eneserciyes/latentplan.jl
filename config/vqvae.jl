@@ -21,48 +21,48 @@ export Train
     model::String = "VQTransformer"
     tag::String = "experiment"
     state_conditional::Bool = true
-    N::Int64 = 100
-    discount::Float64 = 0.99
-    n_layer::Int64 = 4
-    n_head::Int64 = 4
+    N::Int32 = 100
+    discount::Float32 = 0.99
+    n_layer::Int32 = 4
+    n_head::Int32 = 4
 
     ## number of epochs for a 1M-size dataset; n_epochs = 1M / dataset_size * n_epochs_ref
-    n_epochs_ref::Int64 = 50
-    n_saves::Int64 = 3
+    n_epochs_ref::Int32 = 50
+    n_saves::Int32 = 3
     logbase::String = logbase
     device::String = "cuda"
 
-    K::Int64 = 512
-    latent_step::Int64 = 3
-    n_embd::Int64 = 128
-    trajectory_embd::Int64 = 512
-    batch_size::Int64 = 512
-    learning_rate::Float64 = 2e-4
+    K::Int32 = 512
+    latent_step::Int32 = 3
+    n_embd::Int32 = 128
+    trajectory_embd::Int32 = 512
+    batch_size::Int32 = 512
+    learning_rate::Float32 = 2e-4
     lr_decay::Bool = false
-    seed::Int64 = 42
+    seed::Int32 = 42
 
-    embd_pdrop::Float64 = 0.1
-    resid_pdrop::Float64 = 0.1
-    attn_pdrop::Float64 = 0.1
+    embd_pdrop::Float32 = 0.1
+    resid_pdrop::Float32 = 0.1
+    attn_pdrop::Float32 = 0.1
 
-    step::Int64 = 1
-    subsampled_sequence_length::Int64 = 25
-    termination_penalty::Union{Int64,Nothing} = -100
+    step::Int32 = 1
+    subsampled_sequence_length::Int32 = 25
+    termination_penalty::Union{Int32,Nothing} = -100
     exp_name::String = gpt_expname
 
-    position_weight::Int64 = 1
-    action_weight::Int64 = 5
-    reward_weight::Int64 = 1
-    value_weight::Int64 = 1
+    position_weight::Int32 = 1
+    action_weight::Int32 = 5
+    reward_weight::Int32 = 1
+    value_weight::Int32 = 1
 
-    first_action_weight::Int64 = 0
-    sum_reward_weight::Int64 = 0
-    last_value_weight::Int64 = 0
+    first_action_weight::Int32 = 0
+    sum_reward_weight::Int32 = 0
+    last_value_weight::Int32 = 0
     suffix::String = ""
 
     normalize::Bool = true
     normalize_reward::Bool = true
-    max_path_length::Int64 = 1000
+    max_path_length::Int32 = 1000
     bottleneck::String = "pooling"
     masking::String = "uniform"
     disable_goal::Bool = false
@@ -81,20 +81,20 @@ export Plan
     renderer::String = "Renderer"
     suffix::String = "0"
 
-    plan_freq::Int64 = 1
-    horizon::Int64 = 15
+    plan_freq::Int32 = 1
+    horizon::Int32 = 15
     iql_value::Bool = false
 
-    rounds::Int64 = 2
-    nb_samples::Int64 = 4096
+    rounds::Int32 = 2
+    nb_samples::Int32 = 4096
 
-    beam_width::Int64 = 64
-    n_expand::Int64 = 4
+    beam_width::Int32 = 32
+    n_expand::Int32 = 4
 
-    prob_threshold::Float64 = 0.05
-    prob_weight::Float64 = 5e2
+    prob_threshold::Float32 = 0.05
+    prob_weight::Float32 = 5e2
 
-    vis_freq::Int64 = 200
+    vis_freq::Int32 = 200
     exp_name::Function = watch(args_to_watch)
     verbose::Bool = true
     uniform::Bool = false

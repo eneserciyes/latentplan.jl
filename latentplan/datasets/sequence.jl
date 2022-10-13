@@ -6,6 +6,7 @@ using .D4RL
 using .Vutils: squeeze
 using Printf
 using Statistics: mean, std
+using ProgressMeter: @showprogress
 
 
 function segment(observations, terminals, max_path_length)
@@ -34,7 +35,7 @@ function segment(observations, terminals, max_path_length)
     for (i, traj) in enumerate(trajectories)
         path_length = path_lengths[i]
         trajectories_pad[:, 1:path_length, i] = traj
-        early_termination[path_length:end, i] .= 1
+        early_termination[path_length+1:end, i] .= 1
     end
     return trajectories_pad, early_termination, path_lengths
 end 
@@ -73,10 +74,10 @@ struct SequenceDataset;
     action_dim;
     joined_dim;
 
-    function SequenceDataset(env; sequence_length::Int64=250, step::Int64=10, 
-        discount::Float64=0.99, max_path_length::Int64=1000,
-        penalty=nothing, device::String="cuda:0", normalize_raw::Bool=true, normalize_reward::Bool=true,
-        train_portion::Float64=1.0, disable_goal::Bool=false)
+    function SequenceDataset(env; sequence_length::Int32=Int32(250), step::Int32=Int32(10), 
+        discount::Float32=0.99f0, max_path_length::Int32=Int32(1000),
+        penalty::Int32=nothing, device::String="cuda:0", normalize_raw::Bool=true, normalize_reward::Bool=true,
+        train_portion::Float32=1.0f0, disable_goal::Bool=false)
     
         @printf("[ datasets/sequence ] Sequence length: %d | Step: %d | Max path length: %d\n", sequence_length, step, max_path_length)
         
@@ -84,7 +85,7 @@ struct SequenceDataset;
         println("[ datasets/sequence ] Loading...")
 
         dataset = qlearning_dataset_with_timeouts(env.unwrapped, terminate_on_end=true, disable_goal=disable_goal, debug=true)
-        print('✓')
+        println('✓')
 
         # TODO: preprocess_fn
 
@@ -123,22 +124,22 @@ struct SequenceDataset;
 
         discounts = reshape(discount .^ collect(0:max_path_length-1), 1, :)
         values_segmented = zeros(Float32, size(rewards_segmented)...)
-        for t in 1:max_path_length
+        @showprogress "Calculating values" for t in 1:max_path_length
             V = sum(rewards_segmented[:, t+1:end, :] .* discounts[:, 1:end-t], dims=2)
             values_segmented[:, t] = V
         end
 
         values_raw = reshape(dropdims(values_segmented, dims=ndims(values_segmented)), :)
         values_mask = .!reshape(termination_flags, :)
-        values_raw = reshape(values_raw[values_mask], :, 1)
+        values_raw = reshape(values_raw[values_mask], 1, :)
 
         if normalize_raw && normalize_reward
-            value_mean, value_std = mean(values_raw), std(values_raw)
+            value_mean, value_std = mean(values_raw), std(values_raw, corrected=false)
             values_raw = (values_raw .- value_mean) ./ value_std
             rewards_raw = (rewards_raw .- reward_mean) ./ reward_std
             
             values_segmented = (values_segmented .- value_mean) ./ value_std
-            rewards_segmented = (rewards_segmented .- reward_mean) ./ rewards_std
+            rewards_segmented = (rewards_segmented .- reward_mean) ./ reward_std
         else
             value_mean, value_std = 0.0, 1.0
         end
@@ -152,7 +153,7 @@ struct SequenceDataset;
         indices = []
         test_indices = []
         for (path_ind, l) in enumerate(path_lengths)
-            e = l - 1
+            e = l
             split = trunc(Int, e * train_portion)
             for i in 1:split
                 if i < split
@@ -168,18 +169,18 @@ struct SequenceDataset;
         joined_dim = size(joined_raw, ndims(joined_raw)-1)
 
         ## pad trajectories
-        dim_joined, _, n_trajectories = joined_segmented.shape
+        dim_joined, _, n_trajectories = size(joined_segmented)
         joined_segmented = cat(joined_segmented, zeros(Float32, dim_joined, sequence_length-1, n_trajectories), dims=2)
         termination_flags = cat(termination_flags, ones(Bool, sequence_length-1, n_trajectories), dims=1)
 
 
         new(
             env, sequence_length, step, max_path_length, 
-            device, disable_goal, normalized_raw, normalize_reward, 
+            device, disable_goal, normalize_raw, normalize_reward, 
             obs_mean, obs_std, act_mean, act_std, reward_mean, reward_std,
             observations_raw, actions_raw, joined_raw, rewards_raw, terminals_raw,
-            joined_segmented, termination_flags, termination_flags,
-            path_lengths, rewards_segmented, discount, discounts,
+            joined_segmented, termination_flags, path_lengths, 
+            rewards_segmented, discount, discounts,
             values_segmented, values_raw, value_mean, value_std,
             train_portion, test_portion, indices, test_indices,
             observation_dim, action_dim, joined_dim
