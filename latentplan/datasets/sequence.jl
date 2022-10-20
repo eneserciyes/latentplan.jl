@@ -188,4 +188,19 @@ struct SequenceDataset;
     end
 end
 
+function denormalize(s::SequenceDataset, states, actions, rewards, values)
+    states = states .* s.obs_std + s.obs_mean
+    actions = actions .* s.act_std + s.act_mean
+    rewards = rewards .* s.reward_std + s.reward_mean
+    values = values .* s.value_std + s.value_mean
+
+    return states, actions, rewards, values
+end
+
+function normalize_joined_single(s::SequenceDataset, joined)
+    joined_std = cat([s.obs_std[:, 1], s.act_std[:, 1], [s.reward_std], [s.value_std]])
+    joined_mean = cat([s.obs_mean[:, 1], s.act_mean[:, 1], [s.reward_mean], [s.value_mean]])
+    return (joined .- joined_mean) / joined_std
+end
+
 end

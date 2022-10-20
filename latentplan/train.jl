@@ -1,7 +1,7 @@
 include("datasets/sequence.jl")
 include("utils/setup.jl")
 
-using .Sequence: SequenceDataset
+using .Sequence: SequenceDataset, normalize_joined_single
 using .Setup: parser
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 
@@ -69,4 +69,11 @@ end
 #######################
 ######## model ########
 #######################
+
+# model = Model()
+if args["normalize"]
+    normalize_joined_single(dataset, zeros(25))
+end
+
+
 
