@@ -40,6 +40,15 @@ function segment(observations, terminals, max_path_length)
     return trajectories_pad, early_termination, path_lengths
 end 
 
+function compute_values(rewards_segmented::Vector{Float32}, discounts::Vector{Float32}, max_path_length::Int32)
+    values_segmented = zeros(Float32, size(rewards_segmented)...)
+    @showprogress "Calculating values" for t in 1:max_path_length
+        V = sum(rewards_segmented[:, t+1:end, :] .* discounts[:, 1:end-t], dims=2)
+        values_segmented[:, t] = V
+    end
+    return values_segmented
+end
+
 struct SequenceDataset;
     env;
     sequence_length;
@@ -123,11 +132,7 @@ struct SequenceDataset;
         println('✓')
 
         discounts = reshape(discount .^ collect(0:max_path_length-1), 1, :)
-        values_segmented = zeros(Float32, size(rewards_segmented)...)
-        @showprogress "Calculating values" for t in 1:max_path_length
-            V = sum(rewards_segmented[:, t+1:end, :] .* discounts[:, 1:end-t], dims=2)
-            values_segmented[:, t] = V
-        end
+        values_segmented = compute_values(rewards_segmented, discounts, max_path_length)
 
         values_raw = reshape(dropdims(values_segmented, dims=ndims(values_segmented)), :)
         values_mask = .!reshape(termination_flags, :)
