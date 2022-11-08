@@ -1,8 +1,11 @@
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+AutoGrad = "6710c13c-97f1-543f-91c5-74e8f7d95b35"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Conda = "8f4d0f93-b110-5947-807f-2305c1781a2d"
 Configurations = "5218b696-f38b-4ac9-8b61-a12ec717816d"
+Debugger = "31a5f54b-26ea-5ae9-a837-f05ce5417438"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 Knet = "1902f260-5fb4-5aff-8c31-6271790ab950"
