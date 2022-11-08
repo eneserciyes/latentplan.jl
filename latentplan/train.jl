@@ -5,6 +5,8 @@ using .Sequence: SequenceDataset, normalize_joined_single
 using .Setup: parser
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 
+using Debugger
+
 s = ArgParseSettings()
 @add_arg_table! s begin
     "--dataset"
@@ -43,7 +45,7 @@ sequence_length = args["subsampled_sequence_length"] * args["step"]
 args["logbase"] = expanduser(args["logbase"])
 args["savepath"] = expanduser(args["savepath"])
 if !isdir(args["savepath"])
-    mkdir(args["savepath"])
+    mkpath(args["savepath"])
 end
 
 dataset = SequenceDataset(
@@ -57,7 +59,7 @@ dataset = SequenceDataset(
     normalize_reward=args["normalize_reward"],
     max_path_length=args["max_path_length"]
 )
-
+@bp
 obs_dim = dataset.observation_dim
 act_dim = dataset.action_dim
 if args["task_type"] == "locomotion"

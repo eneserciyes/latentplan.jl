@@ -40,7 +40,7 @@ function segment(observations, terminals, max_path_length)
     return trajectories_pad, early_termination, path_lengths
 end 
 
-function compute_values(rewards_segmented::Vector{Float32}, discounts::Vector{Float32}, max_path_length::Int32)
+function compute_values(rewards_segmented::Array{Float32, 3}, discounts::Matrix{Float32}, max_path_length::Int32)
     values_segmented = zeros(Float32, size(rewards_segmented)...)
     @showprogress "Calculating values" for t in 1:max_path_length
         V = sum(rewards_segmented[:, t+1:end, :] .* discounts[:, 1:end-t], dims=2)
@@ -207,5 +207,29 @@ function normalize_joined_single(s::SequenceDataset, joined)
     joined_mean = cat([s.obs_mean[:, 1], s.act_mean[:, 1], [s.reward_mean], [s.value_mean]])
     return (joined .- joined_mean) / joined_std
 end
+
+function denormalize_joined(s::SequenceDataset, joined)
+end
+
+function normalize_states(s::SequenceDataset, states)
+end
+
+function denormalize_states(s::SequenceDataset, states)
+end
+
+function denormalize_values(s::SequenceDataset, values)
+end
+
+function Base.length(s::SequenceDataset)
+    return length(s.indices)
+end
+
+function get_item(s::SequenceDataset, idx)
+end
+
+function get_test(s::SequenceDataset)
+end
+
+
 
 end
