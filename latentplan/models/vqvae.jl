@@ -2,7 +2,7 @@ module VQVAE
 
 include("common.jl")
 
-using .Common: Embedding, one_hot
+using .Common: Embedding, one_hot, Chain, Linear
 
 # VectorQuantization
 function vq(inputs::Array{Float32}, codebook::Matrix{Float32})
@@ -41,6 +41,8 @@ end
 # gradient definition for straight through estimation
 @primitive vq_st(inputs, codebook),dy,y dy[1] vq_st_codebook_backprop(codebook, y, dy)  
 
+#########################
+# VQEmbedding
 
 struct VQEmbedding
     embedding::Embedding
@@ -99,7 +101,42 @@ function straight_through(v::VQEmbeddingMovingAverage, z_e_x, train::Bool=true)
     return z_q_x, z_q_x_bar
 end
 
+#########################
+# VQStepWiseTransformer
 
+struct VQStepWiseTransformer
+    K
+    latent_size
+    condition_size
+    trajectory_input_length
+    embedding_dim
+    trajectory_length
+    block_size
+    observation_dim
+    action_dim
+    transition_dim
+    latent_step
+    state_conditional
+    masking
+    encoder::Chain
+    codebook
+    ma_update::Bool
+    residual
+    decoder::Chain
+    pos_emb
+    embed::Linear
+    predict::Linear
+    cast_embed::Linear
+    latent_mixing::Linear
+    bottleneck::String
+    latent_pooling
+    ln_f::LayerNorm
+
+
+    function VQStepWiseTransformer(config, feature_dim)
+        encoder = Chain([])
+    end
+end
 
 
 end
