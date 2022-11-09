@@ -1,6 +1,7 @@
 module Common
 
 using Knet
+using Distributions: Normal, cdf, mean, std
 
 export Chain
 struct Chain
@@ -19,6 +20,20 @@ paramlist(l::Linear) = [l.w, l.b]
 export ReLU
 struct ReLU; end
 (r::ReLU)(x) = relu.(x)
+
+export GELU
+struct GELU; end
+(g::GELU)(x) = x .* cdf.(Normal(), x)
+
+struct Dropout 
+    pdrop
+    function Dropout(pdrop=0.0)
+        new(pdrop)
+    end
+end
+
+(d::Dropout)(x) = dropout(x, d.pdrop)
+
 
 export Embedding
 struct Embedding

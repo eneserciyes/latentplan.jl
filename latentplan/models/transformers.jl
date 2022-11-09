@@ -49,7 +49,7 @@ struct CausalSelfAttention;
             joined_dim = config["observation_dim"] + config["action_dim"] + 2
             mask[joined_dim:joined_dim:end,:, :, :] .= 0
         end
-        new(key,query,value,proj,mask, config["attn_drop"], config["resid_drop"], config["n_head"])
+        new(key,query,value,proj,mask, config["attn_pdrop"], config["resid_pdrop"], config["n_head"])
     end
 end
 
@@ -78,13 +78,26 @@ struct Block
     ln1::LayerNorm;
     ln2::LayerNorm;
     attn::CausalSelfAttention;
-    mlp;
+    mlp::Chain;
 
     function Block(config)
+        ln1 = LayerNorm(config["n_embd"])
+        ln2 = LayerNorm(config["n_embd"])
+        attn = CausalSelfAttention(config)
+        mlp = Chain(
+            Linear(config["n_embd"], 4 * config["n_embd"]), 
+            GELU(),
+            Linear(4 * config["n_embd"], config["n_embd"]),
+            Dropout(config["resid_pdrop"])
+        )
+        new(ln1,ln2,attn,mlp)
     end
 end
 
 function (b::Block)(x)
+    x = x .+  b.attn(b.ln1(x))
+    x = x .+ b.mlp(b.ln2(x))
+    return x
 end
 
 struct AsymBlock
