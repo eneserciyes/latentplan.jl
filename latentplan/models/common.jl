@@ -19,4 +19,29 @@ paramlist(l::Linear) = [l.w, l.b]
 export ReLU
 struct ReLU; end
 (r::ReLU)(x) = relu.(x)
+
+export Embedding
+struct Embedding
+    weight::Param{Matrix{Float32}}
+
+    function Embedding(D, K)
+        weight = Param(rand(Uniform(-1/K, 1/K), (D, K)))
+        new(weight)
+    end
 end
+
+function (e::Embedding)(x)
+    weight * transpose(x)
+end
+
+export one_hot
+function one_hot(Type, indices, class_num)
+    onehot = zeros(Type, class_num, size(indices)...)
+    for index in CartesianIndices(indices)
+        onehot[indices[index], index] = convert(Type, 1)
+    end
+    onehot
+end
+
+
+
