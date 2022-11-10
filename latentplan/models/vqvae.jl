@@ -1,8 +1,11 @@
 module VQVAE
 
 include("common.jl")
+include("transformers.jl")
 
-using .Common: Embedding, one_hot, Chain, Linear
+using .Common: Embedding, one_hot, Chain, Linear, MaxPool1d, LayerNorm, Dropout
+using .Transformers: Block, AsymBlock
+using Knet: Param
 
 # VectorQuantization
 function vq(inputs::Array{Float32}, codebook::Matrix{Float32})
@@ -129,14 +132,118 @@ struct VQStepWiseTransformer
     cast_embed::Linear
     latent_mixing::Linear
     bottleneck::String
-    latent_pooling
+    latent_pooling::Union{AsymBlock, MaxPool1d}
+    expand
     ln_f::LayerNorm
-
+    drop::Dropout
 
     function VQStepWiseTransformer(config, feature_dim)
-        encoder = Chain([])
+        K = config["K"]
+        latent_size = config["trajectory_embd"]
+        condition_size = config["observation_dim"]
+        trajectory_input_length = config["block_size"] - config["transition_dim"]
+        embedding_dim = config["n_embd"]
+        trajectory_length = config["block_size"] ÷ (config["transition_dim"]-1)
+        block_size = config["block_size"]
+        observation_dim = feature_dim
+        action_dim = config["action_dim"]
+        transition_dim = config["transition_dim"]
+        latent_step = config["latent_step"]
+        state_conditional = config["state_conditional"]
+        if haskey(config, "masking")
+            masking = config["masking"]
+        else
+            masking = "none"
+        end
+
+        encoder = Chain([Block(config) for _ in 1:config["n_layer"]]...)
+        if haskey(config, "ma_update") && !(config["ma_update"])
+            codebook = VQEmbedding(config["trajectory_embd"], config["K"])
+            ma_update = false
+        else
+            codebook = VQEmbeddingMovingAverage(config["trajectory_embd"], config["K"])
+            ma_update = true
+        end
+
+        if !haskey(config, "residual")
+            residual = true
+        else
+            residual = config["residual"]
+        end
+        decoder = Chain([Block(config) for _ in 1:config["n_layer"]]...)
+        pos_emb = Param(zeros(config["n_embd"], trajectory_length, 1))
+        embed = Linear(transition_dim, embedding_dim)
+        predict = Linear(embedding_dim, transition_dim)
+        cast_embed = Linear(embedding_dim, transition_dim)
+        latent_mixing = Linear(latent_size + observation_dim, embedding_dim)
+        if !haskey(config, "bottleneck")
+            bottleneck = "pooling"
+        else
+            bottleneck = config["bottleneck"]
+        end
+        
+        if bottleneck == "pooling"
+            latent_pooling = MaxPool1d(latent_step, latent_step)
+            expand = nothing
+        # else if bottleneck == "attention"
+        #     latent_pooling = AsymBlock(config, trajectory_length ÷ latent_step)
+        #     expand = AsymBlock(config, trajectory_length)
+        end
+        ln_f = LayerNorm(config["n_embd"])
+        drop = Dropout(config["embd_pdrop"])
+
+        new(
+            K, latent_size, condition_size, trajectory_input_length, 
+            embedding_dim, trajectory_length, block_size,
+            observation_dim, action_dim, transition_dim, latent_step, 
+            state_conditional, masking, encoder, codebook, 
+            ma_update, residual, decoder, pos_emb, embed, predict, cast_embed, 
+            latent_mixing, bottleneck, latent_pooling, expand, ln_f, drop
+        )
     end
 end
 
+
+function encode(v::VQStepWiseTransformer, joined_inputs)
+    joined_inputs = convert.(Float32, joined_inputs)
+    _, t, _ = size(joined_inputs)
+    @assert t <= v.block_size
+
+    # forward the GPT model
+    token_embeddings = v.embed(joined_inputs)
+
+    ## [embedding_dim x T x 1]
+    position_embeddings = v.pos_emb[:, 1:t, :]  # each position maps to a (learnable) vector
+    ## [embedding_dim x T x B]
+    x = v.drop(token_embeddings + position_embeddings)
+    x = v.encoder(x)
+    ## [embedding_dim x T x B]
+    x = reshape(v.latent_pooling(permutedims(x, (2, 1, 3))), (2,1,3)) # pooling (not attention)
+    ## [embedding_dim x (T//latent_step) x B]
+    x = v.cast_embed(x)
+    return x
+end
+
+function decode(v::VQStepWiseTransformer, latents, state)
+    _, T, B = size(latents)
+    state_flat = repeat(reshape(state, (:, 1, B)), 1, T, 1)
+    if !v.state_conditional
+        state_flat = zeros(size(state_flat))
+    end
+    inputs = cat((state_flat, latents), dims=1)
+    inputs = v.latent_mixing(inputs)
+    inputs = repeat(inputs, inner=(1, v.latent_step, 1))
+
+    inputs = inputs + v.pos_emb[:, 1:size(inputs, 1), :]
+    x = v.decoder(inputs)
+    x = v.ln_f(x)
+
+    ## [obs_dim x T x B]
+    joined_pred = v.predict(x)
+    joined_pred[end, :, :] = sigm.(joined_pred[end, :, :])
+    joined_pred[1:v.observation_dim, :, :] += reshape(state, (B, 1, :))
+
+    return joined_pred
+end
 
 end

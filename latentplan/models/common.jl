@@ -78,6 +78,21 @@ function softmax(w; dims::Int)
     probs = exp.(w)
     return probs ./ sum(probs, dims=dims)
 end
+# TODO: wrong implementation, check this again
+export MaxPool1d
+struct MaxPool1d
+    window;
+    stride;
+    
+    function MaxPool1d(window, stride)
+        new(window, stride)
+    end
+end
+
+(m::MaxPool1d)(x) = begin 
+    pool_results = pool(reshape(x, size(x, 1), 1, 1); window=m.window, stride=m.stride)[:,1,1]
+    reshape(pool_results, size(pool_results, 1), size(x)[2:end]...) 
+end
 
 end
 

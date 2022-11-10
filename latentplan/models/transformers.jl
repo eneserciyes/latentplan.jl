@@ -1,7 +1,59 @@
 module Transformers
 
 include("common.jl")
-using .Common: LayerNorm
+using .Common: LayerNorm, Linear, softmax
+using Knet: bmm
+
+# NOT TESTED
+struct ScaledDotProductAttention; end
+
+(s::ScaledDotProductAttention)(q,k,v) = begin
+    dk = size(k, 1)
+    scores = bmm(permutedims(k, (2,1,3)), q) .* (1 / sqrt(dk))
+    att = softmax(scores, dims=1)
+    return bmm(v, att)
+end
+
+# NOT TESTED
+struct MultiHeadAttention
+    embed_dim; num_head; linear_q; linear_k; linear_v; linear_o;
+    
+    function MultiHeadAttention(embed_dim, num_head)
+        q = Linear(embed_dim, embed_dim)
+        k = Linear(embed_dim, embed_dim)
+        v = Linear(embed_dim, embed_dim)
+        o = Linear(embed_dim, embed_dim)
+        new(embed_dim, num_head, q,k,v,o)
+    end 
+end
+
+function (m::MultiHeadAttention)(q,k,v)
+    q = m.linear_q(q); k = m.linear_k(k); v = m.linear_v(v)
+    q = _reshape_to_heads(m, q)
+    k = _reshape_to_heads(m, k)
+    v = _reshape_to_heads(m, v)
+    y = ScaledDotProductAttention()(q,k,v)
+    y = _reshape_from_heads(m, y)
+    return m.linear_o(y)
+end
+
+function _reshape_to_heads(m::MultiHeadAttention, x)
+    embed_dim, seq_len, batch_size = size(x)
+    head_dim = embed_dim ÷ m.num_head
+    x = reshape(x, head_dim, m.num_head, seq_len, batch_size)
+    x = permutedims(x, (1, 3, 2, 4))
+    return reshape(x, head_dim, seq_len, m.num_head * batch_size)
+end
+
+function _reshape_from_heads(m::MultiHeadAttention, x)
+    head_dim, seq_len, batch_size = size(x)
+    batch_size = batch_size / m.num_head
+    out_dim = head_dim * m.num_head
+    x = reshape(x, head_dim, seq_len, m.num_head, batch_size)
+    x = permute(x, (1, 3, 2, 4))
+    return reshape(x, out_dim, seq_len, batch_size)
+end
+    
 
 struct SelfAttention
     key;
