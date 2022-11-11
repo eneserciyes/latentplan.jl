@@ -78,6 +78,19 @@ function softmax(w; dims::Int)
     probs = exp.(w)
     return probs ./ sum(probs, dims=dims)
 end
+
+export mse_loss
+function mse_loss(x, y; reduction="mean")
+    if reduction == "mean"
+        return sum((x .- y).^2) / size(x)[end]
+    elseif reduction == "sum"
+        return sum((x .- y).^2)
+    elseif reduction == "none"
+        return sum((x .- y).^2, dims=1:ndims(x)-1)
+    end
+end
+
+
 # TODO: wrong implementation, check this again
 export MaxPool1d
 struct MaxPool1d

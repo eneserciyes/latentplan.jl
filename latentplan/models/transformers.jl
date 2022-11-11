@@ -1,8 +1,8 @@
 module Transformers
 
 include("common.jl")
-using .Common: LayerNorm, Linear, softmax
-using Knet: bmm
+using .Common: LayerNorm, Linear
+using Knet: bmm, softmax
 
 # NOT TESTED
 struct ScaledDotProductAttention; end

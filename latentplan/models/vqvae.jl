@@ -3,9 +3,10 @@ module VQVAE
 include("common.jl")
 include("transformers.jl")
 
-using .Common: Embedding, one_hot, Chain, Linear, MaxPool1d, LayerNorm, Dropout
+using .Common: Embedding, one_hot, Chain, Linear, MaxPool1d, LayerNorm, Dropout, mse_loss
 using .Transformers: Block, AsymBlock
-using Knet: Param
+using Statistics: mean
+using Knet: Param, bce
 
 # VectorQuantization
 function vq(inputs::Array{Float32}, codebook::Matrix{Float32})
@@ -122,7 +123,7 @@ struct VQStepWiseTransformer
     state_conditional
     masking
     encoder::Chain
-    codebook
+    codebook::Union{VQEmbedding, VQEmbeddingMovingAverage}
     ma_update::Bool
     residual
     decoder::Chain
@@ -244,6 +245,151 @@ function decode(v::VQStepWiseTransformer, latents, state)
     joined_pred[1:v.observation_dim, :, :] += reshape(state, (B, 1, :))
 
     return joined_pred
+end
+
+
+function (v::VQStepWiseTransformer)(joined_inputs, state)
+    trajectory_feature = encode(v,joined_inputs)
+    latents_st, latents = straight_through(v.codebook, trajectory_feature)
+    # no bottleneck attention here
+    joined_pred = decode(v, latents_st, state)
+    return joined_pred, latents, trajectory_feature
+end
+
+
+struct VQContinuousVAE
+    model::VQStepWiseTransformer
+    trajectory_embd
+    vocab_size
+    stop_token
+    block_size
+    observation_dim
+    masking
+    action_dim
+    trajectory_length
+    transition_dim
+    action_weight
+    reward_weight
+    value_weight
+    position_weight
+    first_action_weight
+    sum_reward_weight
+    last_value_weight
+    latent_step
+    padding_vector
+
+    function VQContinuousVAE(config)
+        model = VQStepWiseTransformer(config, config["observation_dim"])
+        trajectory_embd = config["trajectory_embd"]
+        vocab_size = config["vocab_size"]
+        stop_token = config["vocab_size"] * config["transition_dim"]
+        block_size = config["block_size"]
+        observation_dim = config["observation_dim"]
+        if haskey(config, "masking")
+            masking = config["masking"]
+        else
+            masking = "none"
+        end
+        action_dim = config["action_dim"]
+        trajectory_length = config["block_size"] ÷ (config["transition_dim"]-1)
+        transition_dim = config["transition_dim"]
+        action_weight = config["action_weight"]
+        reward_weight = config["reward_weight"]
+        value_weight = config["value_weight"]
+        position_weight = config["position_weight"]
+        first_action_weight = config["first_action_weight"]
+        sum_reward_weight = config["sum_reward_weight"]
+        last_value_weight = config["last_value_weight"]
+        latent_step = config["latent_step"]
+        padding_vector = zeros(transition_dim - 1)
+        new(
+            model, trajectory_embd, vocab_size, stop_token, block_size, 
+            observation_dim, masking, action_dim, trajectory_length, 
+            transition_dim, action_weight, reward_weight, value_weight, 
+            position_weight, first_action_weight, sum_reward_weight, 
+            last_value_weight, latent_step, padding_vector
+        )
+    end
+end
+
+function encode(v::VQContinuousVAE, joined_inputs, terminals)
+    _, t, b = size(joined_inputs)
+    padded = repeat(v.padding_vector, (1, t, b))
+    terminal_mask = repeat(deepcopy(1 .- terminals), (size(joined_inputs, 1), 1, 1))
+    joined_inputs = joined_inputs .* terminal_mask .+ padded .* (1 .- terminal_mask)
+
+    trajectory_feature = encode(v.model, cat((joined_inputs, terminals), dims=1)) # TODO: check dims here
+    if v.model.ma_update
+        indices = vq(trajectory_feature, v.model.codebook.embedding)
+    else
+        indices = vq(trajectory_feature, v.model.codebook.embedding.weight)
+    end
+    return indices
+end
+
+function decode(v::VQContinuousVAE, latent, state)
+    return decode(v.model, latent, state)
+end
+
+## TODO: decode_from_indices if necessary
+
+
+function (v::VQContinuousVAE)(joined_inputs; targets=nothing, mask=nothing, terminals=nothing)
+    joined_inputs = convert(Float32, joined_inputs)
+    joined_dimension, t, b = size(joined_inputs)
+    padded = repeat(convert(Float32, v.padding_vector), (1, t, b))
+
+    if !(terminals === nothing)
+        terminal_mask = repeat(deepcopy(1 .- terminals), (size(joined_inputs, 1), 1, 1))
+        joined_inputs = joined_inputs .* terminal_mask .+ padded .* (1 .- terminal_mask)
+    end
+    state = joined_inputs[1:v.observation_dim, 1, :]
+    ## [ embedding_dim X T x B ]
+
+    # forward the GPT model
+    reconstructed, latents, feature = v.model(cat((joined_inputs, terminals), dims=1), state)
+    pred_trajectory = reshape(reconstructed[1:end-1, :, :], (joined_dimension, t, b))
+    pred_terminals = reshape(reconstructed[end, :, :], 1,1,size(reconstructed)[2:end]...)
+
+    if !(targets === nothing)
+        # compute the loss
+        weights = cat([
+            ones(2) .* v.position_weight,
+            ones(v.observation_dim - 2),
+            ones(v.action_dim) .* v.action_weight,
+            ones(1) .* v.reward_weight,
+            ones(1) .* v.value_weight,
+        ])
+
+        mse = mse_loss(pred_trajectory, joined_inputs, reduction="none") .* reshape(weights, (:, 1, 1))
+        first_action_loss = v.first_action_weight .* mse_loss(
+            joined_inputs[observation_dim:observation_dim+action_dim, 1, :], 
+            pred_trajectory[observation_dim:observation_dim+action_dim, 1, :]
+        )
+        sum_reward_loss = v.sum_reward_weight .* mse_loss(
+            mean(joined_inputs[end-1, :, :], dims=1), 
+            mean(pred_trajectory[end-1, :, :], dims=1)
+        )
+        last_value_loss = v.last_value_weight .* mse_loss(
+            joined_inputs[end, end, :], 
+            pred_trajectory[end, end, :]
+        )
+        cross_entropy = bce(pred_terminals, clamp.(convert(Float32, terminals),0.0, 1.0))
+        reconstruction_loss = mean((mse .* mask .* terminal_mask)) + cross_entropy
+        reconstruction_loss = reconstruction_loss + first_action_loss + sum_reward_loss + last_value_loss
+
+        if v.model.ma_update
+            loss_vq = 0
+        else
+            loss_vq = mse_loss(latents, feature)
+        end
+        loss_commit = mse_loss(feature, latents)
+    else
+        reconstruction_loss = nothing
+        loss_vq = nothing
+        loss_commit = nothing
+        return reconstructed, reconstruction_loss, loss_vq, loss_commit
+    end
 end
 
 end
