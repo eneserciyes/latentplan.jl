@@ -5,8 +5,6 @@ using .Sequence: SequenceDataset, normalize_joined_single
 using .Setup: parser
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 
-using Debugger
-
 s = ArgParseSettings()
 @add_arg_table! s begin
     "--dataset"
@@ -57,9 +55,10 @@ dataset = SequenceDataset(
     disable_goal=args["disable_goal"], 
     normalize_raw=args["normalize"], 
     normalize_reward=args["normalize_reward"],
-    max_path_length=args["max_path_length"]
+    max_path_length=args["max_path_length"],
+    train_portion=0.8f0,
 )
-@bp
+
 obs_dim = dataset.observation_dim
 act_dim = dataset.action_dim
 if args["task_type"] == "locomotion"
@@ -68,14 +67,18 @@ else
     transition_dim = 128+act_dim+3
 end
 
+block_size = args["subsampled_sequence_length"] * transition_dim # total number of dimensionalities for a maximum length sequence (T)
+
+print(
+    "Dataset size: $(length(dataset)) |
+    Joined dim: $transition_dim
+    observation: $obs_dim, action: $act_dim | Block size: $block_size"
+)
+
 #######################
 ######## model ########
 #######################
 
 # model = Model()
-if args["normalize"]
-    normalize_joined_single(dataset, zeros(25))
-end
-
 
 

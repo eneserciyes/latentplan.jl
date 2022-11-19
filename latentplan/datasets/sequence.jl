@@ -7,6 +7,7 @@ using .Vutils: squeeze
 using Printf
 using Statistics: mean, std
 using ProgressMeter: @showprogress
+using Debugger: @bp
 
 
 function segment(observations, terminals, max_path_length)
@@ -158,10 +159,10 @@ struct SequenceDataset;
         indices = []
         test_indices = []
         for (path_ind, l) in enumerate(path_lengths)
-            e = l
+            e = l - 1
             split = trunc(Int, e * train_portion)
-            for i in 1:split
-                if i < split
+            for i in 1:e
+                if i <= split
                     push!(indices, (path_ind, i, i+sequence_length))
                 else
                     push!(test_indices, (path_ind, i, i+sequence_length))
@@ -209,6 +210,12 @@ function normalize_joined_single(s::SequenceDataset, joined)
 end
 
 function denormalize_joined(s::SequenceDataset, joined)
+    states = joined[1:s.observation_dim, :]
+    actions = joined[s.observation_dim:s.observation_dim+s.action_dim, :]
+    rewards = reshape(joined[end-2, :], 1, size(joined, 2), 1)
+    values = reshape(joined[end-1, :], 1, size(joined, 2), 1)
+    results = denormalize(s, states, actions, rewards, values)
+    return cat(tuple(results..., reshape(joined[end, :], 1, size(joined, 2), 1)), dims=1)
 end
 
 function normalize_states(s::SequenceDataset, states)
@@ -225,9 +232,43 @@ function Base.length(s::SequenceDataset)
 end
 
 function get_item(s::SequenceDataset, idx)
+    path_ind, start_ind, end_ind = s.indices[idx]
+    joined = s.joined_segmented[:, start_ind:s.step:end_ind-1, path_ind]
+    
+    traj_inds = Vector(start_ind:s.step:end_ind-1)
+    mask = ones(Bool, size(joined))
+    mask[:, traj_inds .>= s.max_path_length - s.step + 1] .= 0 #TODO: burada bir seyler olabilir
+    terminal = (.~cumprod(.~(reshape(s.termination_flags[start_ind:s.step:end_ind-1, path_ind], 1, :, 1)), dims=1))[:,:,1]
+    X = joined[:, 1:end-1]
+    Y = joined[:, 2:end]
+    mask = mask[:,1:end-1]
+    terminal = terminal[:, 1:end-1]
+    return X, Y, mask, terminal
 end
 
+export get_test
 function get_test(s::SequenceDataset)
+    Xs = []
+    Ys = []
+    masks = []
+    terminals = []
+    for (path_ind, start_ind, end_ind) in s.test_indices
+        joined = s.joined_segmented[:, start_ind:s.step:end_ind-1, path_ind]
+        traj_inds = Vector(start_ind:s.step:end_ind-1)
+        mask = ones(Bool, size(joined))
+        mask[:, traj_inds .>= s.max_path_length - s.step + 1] .= 0 
+        terminal = (.~cumprod(.~(reshape(s.termination_flags[start_ind:s.step:end_ind-1, path_ind], 1, :, 1)), dims=1))[:,:,1]
+        X = joined[:, 1:end-1]
+        Y = joined[:, 2:end]
+        mask = mask[:,1:end-1]
+        terminal = terminal[:, 1:end-1]
+        push!(Xs, X)
+        push!(Ys, Y)
+        push!(masks, mask)
+        push!(terminals, terminal)
+    end
+
+    return cat(Xs..., dims=3), cat(Ys..., dims=3), cat(masks..., dims=3), cat(terminals..., dims=3)
 end
 
 
