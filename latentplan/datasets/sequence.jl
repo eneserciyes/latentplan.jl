@@ -7,6 +7,7 @@ using .Vutils: squeeze
 using Printf
 using Statistics: mean, std
 using ProgressMeter: @showprogress
+using Random: shuffle
 using Debugger: @bp
 
 
@@ -271,6 +272,50 @@ function get_test(s::SequenceDataset)
     return cat(Xs..., dims=3), cat(Ys..., dims=3), cat(masks..., dims=3), cat(terminals..., dims=3)
 end
 
+export DataLoader
+struct DataLoader
+    dataset::SequenceDataset
+    batch_size::Int
+    shuffle::Bool
 
+    function DataLoader(dataset::SequenceDataset, batch_size::Int, shuffle::Bool)
+        new(dataset, batch_size, shuffle)
+    end
+end
+
+
+function Base.iterate(d::DataLoader)
+    indices = 1:length(d.dataset)
+    if d.shuffle
+        indices = shuffle(indices)
+    end
+    idx = 1
+    state = (idx, indices)
+    return iterate(d, state)
+end
+
+function Base.iterate(d::DataLoader, state)
+    idx, indices = state
+    if idx > length(d.dataset)
+        return nothing
+    end
+    Xs = []
+    Ys = []
+    masks = []
+    terminals = []
+    for i in idx:min(idx+d.batch_size-1, length(d.dataset))
+        X, Y, mask, terminal = get_item(d.dataset, indices[i])
+        push!(Xs, X)
+        push!(Ys, Y)
+        push!(masks, mask)
+        push!(terminals, terminal)
+    end
+    X = cat(Xs..., dims=3)
+    Y = cat(Ys..., dims=3)
+    mask = cat(masks..., dims=3)
+    terminal = cat(terminals..., dims=3)
+    state = (idx+d.batch_size, indices)
+    return (X, Y, mask, terminal), state
+end
 
 end

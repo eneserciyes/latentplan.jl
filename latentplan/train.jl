@@ -1,7 +1,7 @@
 include("datasets/sequence.jl")
 include("utils/setup.jl")
 
-using .Sequence: SequenceDataset, normalize_joined_single
+using .Sequence: SequenceDataset, normalize_joined_single, get_item, DataLoader
 using .Setup: parser
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 
@@ -56,7 +56,6 @@ dataset = SequenceDataset(
     normalize_raw=args["normalize"], 
     normalize_reward=args["normalize_reward"],
     max_path_length=args["max_path_length"],
-    train_portion=0.8f0,
 )
 
 obs_dim = dataset.observation_dim
