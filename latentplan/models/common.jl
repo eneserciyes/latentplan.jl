@@ -63,7 +63,7 @@ function one_hot(Type, indices, class_num)
 end
 
 struct LayerNorm; a; b; ϵ; end
-paramlist(l::LayerNorm) = Dict("no_decay" => [l.a, l.b], "decay" => [])
+paramlist(l::LayerNorm) = [l.a, l.b]
 paramlist_decay(l::LayerNorm) = []
 paramlist_no_decay(l::LayerNorm) = [l.a, l.b]
 

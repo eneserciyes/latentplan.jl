@@ -206,14 +206,24 @@ struct VQStepWiseTransformer
     end
 end
 
-paramlist(v::VQStepWiseTransformer) = Iterators.flatten(vcat(
-    paramlist.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f]), 
-    v.pos_emb
-))
-paramlist_no_decay(v::VQStepWiseTransformer) = Iterators.flatten(vcat(
-    paramlist_no_decay.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f]), 
-    v.pos_emb
-))
+paramlist(v::VQStepWiseTransformer) = begin
+    model_params = collect(
+        Iterators.flatten(
+            paramlist.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f])
+        )
+    )
+    push!(model_params, v.pos_emb)
+    model_params
+end
+paramlist_no_decay(v::VQStepWiseTransformer) = begin
+    model_params = collect(
+        Iterators.flatten(
+            paramlist_no_decay.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f])
+        )
+    )
+    push!(model_params, v.pos_emb)
+    model_params
+end
 paramlist_decay(v::VQStepWiseTransformer) = Iterators.flatten(
     paramlist_decay.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f]), 
 )
