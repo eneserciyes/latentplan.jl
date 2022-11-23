@@ -146,7 +146,7 @@ struct VQStepWiseTransformer
         condition_size = config["observation_dim"]
         trajectory_input_length = config["block_size"] - config["transition_dim"]
         embedding_dim = config["n_embd"]
-        trajectory_length = config["block_size"] ÷ (config["transition_dim"]-1)
+        trajectory_length = config["block_size"] ÷ config["transition_dim"] - 1
         block_size = config["block_size"]
         observation_dim = feature_dim
         action_dim = config["action_dim"]
@@ -177,7 +177,7 @@ struct VQStepWiseTransformer
         pos_emb = Param(zeros(config["n_embd"], trajectory_length, 1))
         embed = Linear(transition_dim, embedding_dim)
         predict = Linear(embedding_dim, transition_dim)
-        cast_embed = Linear(embedding_dim, transition_dim)
+        cast_embed = Linear(embedding_dim, latent_size)
         latent_mixing = Linear(latent_size + observation_dim, embedding_dim)
         if !haskey(config, "bottleneck")
             bottleneck = "pooling"
@@ -314,7 +314,7 @@ mutable struct VQContinuousVAE
             masking = "none"
         end
         action_dim = config["action_dim"]
-        trajectory_length = config["block_size"] ÷ (config["transition_dim"]-1)
+        trajectory_length = config["block_size"] ÷ config["transition_dim"] - 1
         transition_dim = config["transition_dim"]
         action_weight = config["action_weight"]
         reward_weight = config["reward_weight"]
