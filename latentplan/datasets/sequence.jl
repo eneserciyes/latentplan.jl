@@ -276,7 +276,7 @@ struct DataLoader
     batch_size::Int
     shuffle::Bool
 
-    function DataLoader(dataset::SequenceDataset, batch_size::Int, shuffle::Bool)
+    function DataLoader(dataset::SequenceDataset; batch_size::Int, shuffle::Bool)
         new(dataset, batch_size, shuffle)
     end
 end

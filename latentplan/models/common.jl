@@ -38,7 +38,6 @@ end
 
 (d::Dropout)(x) = dropout(x, d.pdrop)
 
-
 struct Embedding
     weight::Param{Matrix{Float32}}
 

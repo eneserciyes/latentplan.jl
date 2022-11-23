@@ -1,15 +1,10 @@
-include("datasets/sequence.jl")
-include("utils/setup.jl")
-include("models/vqvae.jl")
-
-using .Sequence: SequenceDataset, normalize_joined_single, get_item, DataLoader
-using .Setup: parser
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
-using .VQVAE: VQContinuousVAE
 using Statistics: mean
-using Knet
 using Printf
 
+include("LPCore.jl")
+include("setup.jl")
+using .LPCore
 
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
 
@@ -26,7 +21,7 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
     end
 
     n_tokens = 0
-    loader = DataLoader(dataset, shuffle=true, batch_size=config["batch_size"])
+    loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
 
     for epoch in 1:n_epochs
         losses = []

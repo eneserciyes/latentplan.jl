@@ -1,7 +1,4 @@
-module Setup
-
-include("../../config/vqvae.jl")
-
+include("../config/vqvae.jl")
 
 using Configurations: to_dict
 using Knet: seed!
@@ -63,6 +60,4 @@ function read_config(args::Dict{String, Any}, experiment::Union{String, Nothing}
         end
     end
     return params
-end
-
 end
