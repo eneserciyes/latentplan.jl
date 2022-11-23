@@ -1,5 +1,3 @@
-module D4RL
-
 using PyCall
 using ProgressMeter
 
@@ -88,4 +86,4 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
         "realterminals"=>realdone_,
     )
 end
-end
+

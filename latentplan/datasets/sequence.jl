@@ -1,17 +1,16 @@
-module Sequence
 export DataLoader, get_test, get_item, SequenceDataset, denormalize, normalize_joined_single, denormalize_joined
 
 include("d4rl.jl")
-include("../vector_utils.jl")
 
-using .D4RL
-using .Vutils: squeeze
 using Printf
 using Statistics: mean, std
 using ProgressMeter: @showprogress
 using Random: shuffle
-using Debugger: @bp
 
+function squeeze(A::AbstractArray)
+    singleton_dims = tuple((d for d in 1:ndims(A) if size(A, d) == 1)...)
+    return dropdims(A, dims=singleton_dims)
+end
 
 function segment(observations, terminals, max_path_length)
     @assert size(observations, 2) == size(terminals, 1)
@@ -109,7 +108,6 @@ struct SequenceDataset;
         terminals = dataset["terminals"]
         realterminals = dataset["realterminals"]
 
-        # TODO: check std differences again
         obs_mean, obs_std = mean(observations, dims=2)  , std(observations, dims=2, corrected=false)
         act_mean, act_std = mean(actions, dims=2), std(actions, dims=2, corrected=false)
         reward_mean, reward_std = mean(rewards), std(rewards, corrected=false)
@@ -125,7 +123,7 @@ struct SequenceDataset;
         rewards_raw = rewards
         terminals_raw = terminals
 
-        if penalty !== nothing #TODO: this should be true, handle args
+        if penalty !== nothing
             terminal_mask = squeeze(realterminals)
             rewards_raw[terminal_mask] .= penalty
         end
@@ -316,6 +314,4 @@ function Base.iterate(d::DataLoader, state)
     terminal = cat(terminals..., dims=3)
     state = (idx+d.batch_size, indices)
     return (X, Y, mask, terminal), state
-end
-
 end
