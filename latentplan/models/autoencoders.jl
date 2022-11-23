@@ -1,3 +1,4 @@
+# TODO: delete this if safe
 module AutoEncoders
 
 include("common.jl")
@@ -6,10 +7,11 @@ using .Common: Chain, Linear, ReLU
 
 export encode, decode, MLPModel, SymbolWiseTransformer, StepWiseTransformer
 
+export Encoder
 struct Encoder;
-    MLP;
-    linear_means;
-    linear_log_var;
+    MLP::Chain;
+    linear_means::Linear;
+    linear_log_var::Linear;
     
     function Encoder(layer_sizes::Array, latent_size::Int, condition_size::Int)
         MLP = Chain()
@@ -28,6 +30,11 @@ struct Encoder;
     end
 end
 
+paramlist(e::Encoder) = Iterators.flatten(paramlist.[e.MLP, e.linear_means, e.linear_log_var])
+paramlist_decay(e::Encoder) = Iterators.flatten(paramlist_decay.[e.MLP, e.linear_means, e.linear_log_var])
+paramlist_no_decay(e::Encoder) = Iterators.flatten(paramlist_no_decay.[e.MLP, e.linear_means, e.linear_log_var])
+
+
 
 function (e::Encoder)(x)
     x = e.MLP(x)
@@ -36,9 +43,9 @@ function (e::Encoder)(x)
     return means, log_vars
 end
 
-
+export Decoder
 struct Decoder; 
-    MLP; 
+    MLP::Chain; 
 
     function Decoder(layer_sizes::Array, latent_size::Int, condition_size::Int)
         MLP = Chain()
@@ -54,29 +61,14 @@ struct Decoder;
     end
 end
 
+paramlist(d::Decoder) = paramlist(d.MLP)
+
 function (d::Decoder)(z)
     x = d.MLP(z)
     return x
 end
 
-
-struct MLPModel
-    condition_size::Int32;
-    trajectory_input_length::Int32;
-    encoder::Encoder;
-    decoder::Decoder;
-
-    function MLPModel(config)
-    end
-end
-
-function encode(m::MLPModel, X)
-end
-
-function decode(m::MLPModel, latents, state)
-end
-
-
+#=
 struct SymbolWiseTransformer
     latent_size;
     condition_size;
@@ -141,5 +133,6 @@ end
 
 function decode(step_t::StepWiseTransformer, latents, state)
 end
+=#
 
 end

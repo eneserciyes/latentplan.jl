@@ -1,10 +1,12 @@
 module Transformers
 
 include("common.jl")
-using .Common: LayerNorm, Linear
+using .Common: LayerNorm, Linear, GELU, Dropout
 using Knet: bmm, softmax
+using LinearAlgebra: UpperTriangular
 
-# NOT TESTED
+#=
+NOT TESTED
 struct ScaledDotProductAttention; end
 
 (s::ScaledDotProductAttention)(q,k,v) = begin
@@ -84,11 +86,13 @@ end
 
 function (a::AttentionBlock)(x)
 end
+=#
 
 struct CausalSelfAttention; 
-    key; query; value; proj; mask;
-    attn_drop; resid_drop;
-    n_head;
+    key::Linear; query::Linear; value::Linear; 
+    proj::Linear; mask::Matrix;
+    attn_drop::Float32; resid_drop::Float32;
+    n_head::Int32;
     
     function CausalSelfAttention(config)
         key = Linear(config["n_embd"], config["n_embd"])
@@ -104,6 +108,9 @@ struct CausalSelfAttention;
         new(key,query,value,proj,mask, config["attn_pdrop"], config["resid_pdrop"], config["n_head"])
     end
 end
+paramlist(c::CausalSelfAttention) = Iterators.flatten(paramlist.[c.key, c.query, c.value, c.proj])
+paramlist_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_decay.[c.key, c.query, c.value, c.proj])
+paramlist_no_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_no_decay.[c.key, c.query, c.value, c.proj])
 
 function (c::CausalSelfAttention)(x)
     C, T, B = size(x)
@@ -145,6 +152,10 @@ struct Block
         new(ln1,ln2,attn,mlp)
     end
 end
+paramlist(b::Block) = Iterators.flatten(paramlist.[b.ln1, b.ln2, b.attn, b.mlp])
+paramlist_decay(b::Block) = Iterators.flatten(paramlist_decay.[b.ln1, b.ln2, b.attn, b.mlp])
+paramlist_no_decay(b::Block) = Iterators.flatten(paramlist_no_decay.[b.ln1, b.ln2, b.attn, b.mlp])
+
 
 function (b::Block)(x)
     x = x .+  b.attn(b.ln1(x))
@@ -152,20 +163,22 @@ function (b::Block)(x)
     return x
 end
 
-struct AsymBlock
-    key;
-    query;
-    value;
-    ln1;
-    ln2;
-    attention;
-    mlp;
+# struct AsymBlock
+#     key;
+#     query;
+#     value;
+#     ln1;
+#     ln2;
+#     attention;
+#     mlp;
 
-    function AsymBlock(config, out_tokens)
-        # TODO: requires the implementation of nn.MultiheadAttention
-    end
-end
+#     function AsymBlock(config, out_tokens)
+#         # TODO: requires the implementation of nn.MultiheadAttention
+#     end
+# end
 
-function (a::AsymBlock)(x)
+# function (a::AsymBlock)(x)
     
+# end
+
 end

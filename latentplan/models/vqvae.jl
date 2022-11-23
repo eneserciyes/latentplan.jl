@@ -1,6 +1,6 @@
 module VQVAE
 
-include("common.jl")
+# include("common.jl")
 include("transformers.jl")
 
 using .Common: Embedding, one_hot, Chain, Linear, MaxPool1d, LayerNorm, Dropout, mse_loss
@@ -57,6 +57,10 @@ struct VQEmbedding
     end
 end
 
+paramlist(v::VQEmbedding) = paramlist(v.embedding)
+paramlist_decay(v::VQEmbedding) = paramlist_decay(v.embedding)
+paramlist_no_decay(v::VQEmbedding) = paramlist_no_decay(v.embedding)
+
 function (v::VQEmbedding)(z_e_x::Array{Float32})
     latents = vq(z_e_x, v.embedding.weight)
     return latents
@@ -81,6 +85,9 @@ mutable struct VQEmbeddingMovingAverage
         new(embedding, decay, ema_count, ema_w)
     end
 end
+paramlist(v::VQEmbeddingMovingAverage) = []
+paramlist_decay(v::VQEmbeddingMovingAverage) = []
+paramlist_no_decay(v::VQEmbeddingMovingAverage) = []
 
 function (v::VQEmbeddingMovingAverage)(z_e_x)
     vq(z_e_x, v.embedding.weight)
@@ -109,25 +116,25 @@ end
 # VQStepWiseTransformer
 
 struct VQStepWiseTransformer
-    K
-    latent_size
-    condition_size
-    trajectory_input_length
-    embedding_dim
-    trajectory_length
-    block_size
-    observation_dim
-    action_dim
-    transition_dim
-    latent_step
-    state_conditional
-    masking
+    K::Int32
+    latent_size::Int32
+    condition_size::Int32
+    trajectory_input_length::Int32
+    embedding_dim::Int32
+    trajectory_length::Int32
+    block_size::Int32
+    observation_dim::Int32
+    action_dim::Int32
+    transition_dim::Int32
+    latent_step::Int32
+    state_conditional::Bool
+    masking::String
     encoder::Chain
     codebook::Union{VQEmbedding, VQEmbeddingMovingAverage}
     ma_update::Bool
-    residual
+    residual::Bool
     decoder::Chain
-    pos_emb
+    pos_emb::Param
     embed::Linear
     predict::Linear
     cast_embed::Linear
@@ -204,6 +211,17 @@ struct VQStepWiseTransformer
     end
 end
 
+paramlist(v::VQStepWiseTransformer) = Iterators.flatten(vcat(
+    paramlist.[v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f], 
+    v.pos_emb
+))
+paramlist_no_decay(v::VQStepWiseTransformer) = Iterators.flatten(vcat(
+    paramlist_no_decay.[v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f], 
+    v.pos_emb
+))
+paramlist_decay(v::VQStepWiseTransformer) = Iterators.flatten(
+    paramlist_decay.[v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f], 
+)
 
 function encode(v::VQStepWiseTransformer, joined_inputs)
     joined_inputs = convert.(Float32, joined_inputs)
@@ -257,26 +275,26 @@ function (v::VQStepWiseTransformer)(joined_inputs, state)
 end
 
 
-struct VQContinuousVAE
+mutable struct VQContinuousVAE
     model::VQStepWiseTransformer
-    trajectory_embd
-    vocab_size
-    stop_token
-    block_size
-    observation_dim
-    masking
-    action_dim
-    trajectory_length
-    transition_dim
-    action_weight
-    reward_weight
-    value_weight
-    position_weight
-    first_action_weight
-    sum_reward_weight
-    last_value_weight
-    latent_step
-    padding_vector
+    trajectory_embd::Int32
+    vocab_size::Int32
+    stop_token::Int32
+    block_size::Int32
+    observation_dim::Int32
+    masking::String
+    action_dim::Int32
+    trajectory_length::Int32
+    transition_dim::Int32
+    action_weight::Float32
+    reward_weight::Float32
+    value_weight::Float32
+    position_weight::Float32
+    first_action_weight::Float32
+    sum_reward_weight::Float32
+    last_value_weight::Float32
+    latent_step::Int32
+    padding_vector::Vector
 
     function VQContinuousVAE(config)
         model = VQStepWiseTransformer(config, config["observation_dim"])
@@ -311,6 +329,10 @@ struct VQContinuousVAE
         )
     end
 end
+
+paramlist(v::VQContinuousVAE) = paramlist(v.model)
+paramlist_decay(v::VQContinuousVAE) = paramlist_decay(v.model)
+paramlist_no_decay(v::VQContinuousVAE) = paramlist_no_decay(v.model)
 
 function encode(v::VQContinuousVAE, joined_inputs, terminals)
     _, t, b = size(joined_inputs)
@@ -388,8 +410,9 @@ function (v::VQContinuousVAE)(joined_inputs; targets=nothing, mask=nothing, term
         reconstruction_loss = nothing
         loss_vq = nothing
         loss_commit = nothing
-        return reconstructed, reconstruction_loss, loss_vq, loss_commit
     end
+    return reconstructed, reconstruction_loss, loss_vq, loss_commit
+
 end
 
 end

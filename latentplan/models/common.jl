@@ -9,13 +9,22 @@ struct Chain
     Chain(layers...) = new(layers)
 end
 (c::Chain)(x) = (for l in c.layers; x = l(x); end; x)
+paramlist(c::Chain) = Iterators.flatten(paramlist.(c.layers))
+paramlist_decay(c::Chain) = Iterators.flatten(paramlist_decay.(c.layers))
+paramlist_no_decay(c::Chain) = Iterators.flatten(paramlist_no_decay.(c.layers))
+
+paramlist(c::Any) = []
+paramlist_decay(c::Any) = []
+paramlist_no_decay(c::Any) = []
 
 export Linear
 struct Linear; w; b; pdrop; end
 Linear(in_dim::Int, out_dim::Int; pdrop=0) = Linear(param(out_dim,in_dim), param0(out_dim), pdrop)
 (l::Linear)(x) = reshape(l.w * reshape(dropout(x, l.pdrop), size(x)[1], :), size(l.w)[1], size(x)[2:end]...) .+ l.b
-paramlist(l::Linear) = [l.w, l.b]
 
+paramlist(l::Linear) = Iterators.flatten([paramlist_decay(l), paramlist_no_decay(l)])
+paramlist_decay(l::Linear) = [l.w]
+paramlist_no_decay(l::Linear) = [l.b]
 
 export ReLU
 struct ReLU; end
@@ -44,6 +53,9 @@ struct Embedding
         new(weight)
     end
 end
+paramlist(e::Embedding) = Iterators.flatten([paramlist_decay(e), paramlist_no_decay(e)])
+paramlist_decay(e::Embedding) = []
+paramlist_no_decay(e::Embedding) = [e.weight]
 
 function (e::Embedding)(x)
     weight * transpose(x)
@@ -60,6 +72,9 @@ end
 
 export LayerNorm
 struct LayerNorm; a; b; ϵ; end
+paramlist(l::LayerNorm) = Dict("no_decay" => [l.a, l.b], "decay" => [])
+paramlist_decay(l::LayerNorm) = []
+paramlist_no_decay(l::LayerNorm) = [l.a, l.b]
 
 function LayerNorm(dmodel; eps=1e-5)
     a = param(dmodel; init=ones)

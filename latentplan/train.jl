@@ -1,9 +1,59 @@
 include("datasets/sequence.jl")
 include("utils/setup.jl")
+include("models/vqvae.jl")
 
 using .Sequence: SequenceDataset, normalize_joined_single, get_item, DataLoader
 using .Setup: parser
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
+using .VQVAE: VQContinuousVAE, configure_optimizer
+using Statistics: mean
+using Knet
+
+
+losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
+loss(model, batch) = losssum(model(batch...))
+lossgradient = grad(loss)
+
+function vq_train(config, model, dataset; n_epochs=1, log_freq=100)
+    n_tokens = 0
+
+    loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
+
+    for epoch in 1:n_epochs
+        losses = []
+        for (it, batch) in enumerate(loader)
+            y = batch[end-1]
+            n_tokens += cumprod(size(y))
+
+            if n_tokens < config["warmup_tokens"]
+                # linear warmup
+                lr_mult = float(n_tokens) / float(max(1, config["warmup_tokens"]))
+            else
+                # cosine learning rate decay
+                progress = float(n_tokens - config["warmup_tokens"]) / float(
+                    max(1, config["final_tokens"] - config["warmup_tokens"])
+                )
+                lr_mult = max(0.1, 0.5 * (1.0 + cos(pi * progress)))
+            end
+
+            if config["lr_decay"]
+                lr = config["learning_rate"] * lr_mult
+                # TODO: param_group learning rate
+            else
+                lr = config["learning_rate"]
+            end
+
+            # forward the model
+            g = lossgradient(model, batch)
+            update(paramlist(model), g, lr=lr)
+            
+
+        end
+    end
+
+
+
+end
 
 s = ArgParseSettings()
 @add_arg_table! s begin
@@ -78,6 +128,20 @@ print(
 ######## model ########
 #######################
 
-# model = Model()
+model_config = deepcopy(args)
+model_config["block_size"] = block_size
+model_config["observation_dim"] = obs_dim
+model_config["action_dim"] = act_dim
+model_config["transition_dim"] = transition_dim
+model_config["n_embd"] = args["n_embd"] * args["n_head"]
+model_config["vocab_size"] = args["N"]
+
+model = VQContinuousVAE(model_config)
+
+model.padding_vector = normalize_joined_single(dataset, zeros(mode.transition_dim-1))
+
+warmup_tokens = length(dataset) * block_size
+final_tokens = 20 * warmup_tokens
+
 
 
