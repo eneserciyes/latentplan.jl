@@ -13,7 +13,7 @@ struct Encoder;
     linear_means::Linear;
     linear_log_var::Linear;
     
-    function Encoder(layer_sizes::Array, latent_size::Int, condition_size::Int)
+    function Encoder(layer_sizes, latent_size, condition_size)
         MLP = Chain()
         layer_sizes[0] += condition_size
     
@@ -47,7 +47,7 @@ export Decoder
 struct Decoder; 
     MLP::Chain; 
 
-    function Decoder(layer_sizes::Array, latent_size::Int, condition_size::Int)
+    function Decoder(layer_sizes, latent_size, condition_size)
         MLP = Chain()
         input_size = latent_size + condition_size
     

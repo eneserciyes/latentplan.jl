@@ -1,7 +1,8 @@
 module Transformers
+export CausalSelfAttention, Block, paramlist, paramlist_decay, paramlist_no_decay
 
 include("common.jl")
-using .Common: LayerNorm, Linear, GELU, Dropout
+using .Common: LayerNorm, Linear, GELU, Dropout, Chain
 using Knet: bmm, softmax
 using LinearAlgebra: UpperTriangular
 
@@ -90,9 +91,9 @@ end
 
 struct CausalSelfAttention; 
     key::Linear; query::Linear; value::Linear; 
-    proj::Linear; mask::Matrix;
-    attn_drop::Float32; resid_drop::Float32;
-    n_head::Int32;
+    proj::Linear; mask;
+    attn_drop; resid_drop;
+    n_head;
     
     function CausalSelfAttention(config)
         key = Linear(config["n_embd"], config["n_embd"])

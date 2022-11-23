@@ -5,7 +5,7 @@ include("models/vqvae.jl")
 using .Sequence: SequenceDataset, normalize_joined_single, get_item, DataLoader
 using .Setup: parser
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
-using .VQVAE: VQContinuousVAE, configure_optimizer
+using .VQVAE: VQContinuousVAE
 using Statistics: mean
 using Knet
 using Printf
@@ -80,7 +80,6 @@ s = ArgParseSettings()
         default = "debug"
     "--seed"
         help = "seed"
-        arg_type = Int
         default = 42
     "--config"
         help = "relative jl file path with configurations"
@@ -156,8 +155,8 @@ model.padding_vector = normalize_joined_single(dataset, zeros(mode.transition_di
 warmup_tokens = length(dataset) * block_size
 final_tokens = 20 * warmup_tokens
 
-n_epochs = Int(1e6 / length(dataset) * args["n_epochs_ref"])
-save_freq = Int(n_epochs ÷ args["n_saves"])
+n_epochs = Int32(1e6 / length(dataset) * args["n_epochs_ref"])
+save_freq = Int32(n_epochs ÷ args["n_saves"])
 #TODO: wandb init
 
 for epoch in 1:n_epochs

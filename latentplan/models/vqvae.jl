@@ -1,12 +1,14 @@
 module VQVAE
-
-# include("common.jl")
+export VQEmbeddingMovingAverage, VQEmbedding, VQStepWiseTransformer, VQContinuousVAE, paramlist, paramlist_no_decay, paramlist_decay
+include("common.jl")
 include("transformers.jl")
 
-using .Common: Embedding, one_hot, Chain, Linear, MaxPool1d, LayerNorm, Dropout, mse_loss
-using .Transformers: Block, AsymBlock
+using .Common
+using .Transformers
 using Statistics: mean
-using Knet: Param, bce
+using Knet
+using AutoGrad
+using Distributions: Uniform
 
 # VectorQuantization
 function vq(inputs::Array{Float32}, codebook::Matrix{Float32})
@@ -74,7 +76,7 @@ end
 
 mutable struct VQEmbeddingMovingAverage
     embedding
-    decay::Float32
+    decay
     ema_count
     ema_w
 
@@ -103,7 +105,6 @@ function straight_through(v::VQEmbeddingMovingAverage, z_e_x, train::Bool=true)
         dw = reshape(z_e_x, (D, :)) * transpose(encodings) 
         v.ema_w = v.decay .* v.ema_w + (1 - v.decay) .* dw
         v.embedding = v.ema_w ./ reshape(v.ema_count, (1, :))
-        @size v.embedding
     end
 
     z_q_x_bar_flatten = v.embedding[:, indices]
@@ -116,17 +117,17 @@ end
 # VQStepWiseTransformer
 
 struct VQStepWiseTransformer
-    K::Int32
-    latent_size::Int32
-    condition_size::Int32
-    trajectory_input_length::Int32
-    embedding_dim::Int32
-    trajectory_length::Int32
-    block_size::Int32
-    observation_dim::Int32
-    action_dim::Int32
-    transition_dim::Int32
-    latent_step::Int32
+    K
+    latent_size
+    condition_size
+    trajectory_input_length
+    embedding_dim
+    trajectory_length
+    block_size
+    observation_dim
+    action_dim
+    transition_dim
+    latent_step
     state_conditional::Bool
     masking::String
     encoder::Chain
@@ -140,7 +141,7 @@ struct VQStepWiseTransformer
     cast_embed::Linear
     latent_mixing::Linear
     bottleneck::String
-    latent_pooling::Union{AsymBlock, MaxPool1d}
+    latent_pooling::MaxPool1d
     expand
     ln_f::LayerNorm
     drop::Dropout
@@ -277,23 +278,23 @@ end
 
 mutable struct VQContinuousVAE
     model::VQStepWiseTransformer
-    trajectory_embd::Int32
-    vocab_size::Int32
-    stop_token::Int32
-    block_size::Int32
-    observation_dim::Int32
+    trajectory_embd
+    vocab_size
+    stop_token
+    block_size
+    observation_dim
     masking::String
-    action_dim::Int32
-    trajectory_length::Int32
-    transition_dim::Int32
-    action_weight::Float32
-    reward_weight::Float32
-    value_weight::Float32
-    position_weight::Float32
-    first_action_weight::Float32
-    sum_reward_weight::Float32
-    last_value_weight::Float32
-    latent_step::Int32
+    action_dim
+    trajectory_length
+    transition_dim
+    action_weight
+    reward_weight
+    value_weight
+    position_weight
+    first_action_weight
+    sum_reward_weight
+    last_value_weight
+    latent_step
     padding_vector::Vector
 
     function VQContinuousVAE(config)

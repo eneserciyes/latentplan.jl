@@ -1,4 +1,6 @@
 module Sequence
+export DataLoader, get_test, get_item, SequenceDataset, denormalize, normalize_joined_single, denormalize_joined
+
 include("d4rl.jl")
 include("../vector_utils.jl")
 
@@ -42,7 +44,7 @@ function segment(observations, terminals, max_path_length)
     return trajectories_pad, early_termination, path_lengths
 end 
 
-function compute_values(rewards_segmented::Array{Float32, 3}, discounts::Matrix{Float32}, max_path_length::Int32)
+function compute_values(rewards_segmented, discounts, max_path_length)
     values_segmented = zeros(Float32, size(rewards_segmented)...)
     @showprogress "Calculating values" for t in 1:max_path_length
         V = sum(rewards_segmented[:, t+1:end, :] .* discounts[:, 1:end-t], dims=2)
@@ -85,10 +87,10 @@ struct SequenceDataset;
     action_dim;
     joined_dim;
 
-    function SequenceDataset(env; sequence_length::Int32=Int32(250), step::Int32=Int32(10), 
-        discount::Float32=0.99f0, max_path_length::Int32=Int32(1000),
-        penalty::Int32=nothing, device::String="cuda:0", normalize_raw::Bool=true, normalize_reward::Bool=true,
-        train_portion::Float32=1.0f0, disable_goal::Bool=false)
+    function SequenceDataset(env; sequence_length=250, step=10, 
+        discount=0.99, max_path_length=1000,
+        penalty=nothing, device::String="cuda:0", normalize_raw::Bool=true, normalize_reward::Bool=true,
+        train_portion=1.0, disable_goal::Bool=false)
     
         @printf("[ datasets/sequence ] Sequence length: %d | Step: %d | Max path length: %d\n", sequence_length, step, max_path_length)
         
@@ -247,7 +249,6 @@ function get_item(s::SequenceDataset, idx)
     return X, Y, mask, terminal
 end
 
-export get_test
 function get_test(s::SequenceDataset)
     Xs = []
     Ys = []
@@ -272,7 +273,6 @@ function get_test(s::SequenceDataset)
     return cat(Xs..., dims=3), cat(Ys..., dims=3), cat(masks..., dims=3), cat(terminals..., dims=3)
 end
 
-export DataLoader
 struct DataLoader
     dataset::SequenceDataset
     batch_size::Int
