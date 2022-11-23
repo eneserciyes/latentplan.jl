@@ -30,9 +30,9 @@ struct Encoder;
     end
 end
 
-paramlist(e::Encoder) = Iterators.flatten(paramlist.[e.MLP, e.linear_means, e.linear_log_var])
-paramlist_decay(e::Encoder) = Iterators.flatten(paramlist_decay.[e.MLP, e.linear_means, e.linear_log_var])
-paramlist_no_decay(e::Encoder) = Iterators.flatten(paramlist_no_decay.[e.MLP, e.linear_means, e.linear_log_var])
+paramlist(e::Encoder) = Iterators.flatten(paramlist.([e.MLP, e.linear_means, e.linear_log_var]))
+paramlist_decay(e::Encoder) = Iterators.flatten(paramlist_decay.([e.MLP, e.linear_means, e.linear_log_var]))
+paramlist_no_decay(e::Encoder) = Iterators.flatten(paramlist_no_decay.([e.MLP, e.linear_means, e.linear_log_var]))
 
 
 

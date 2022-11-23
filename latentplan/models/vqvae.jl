@@ -212,15 +212,15 @@ struct VQStepWiseTransformer
 end
 
 paramlist(v::VQStepWiseTransformer) = Iterators.flatten(vcat(
-    paramlist.[v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f], 
+    paramlist.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f]), 
     v.pos_emb
 ))
 paramlist_no_decay(v::VQStepWiseTransformer) = Iterators.flatten(vcat(
-    paramlist_no_decay.[v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f], 
+    paramlist_no_decay.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f]), 
     v.pos_emb
 ))
 paramlist_decay(v::VQStepWiseTransformer) = Iterators.flatten(
-    paramlist_decay.[v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f], 
+    paramlist_decay.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f]), 
 )
 
 function encode(v::VQStepWiseTransformer, joined_inputs)

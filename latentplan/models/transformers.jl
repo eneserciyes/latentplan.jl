@@ -108,9 +108,9 @@ struct CausalSelfAttention;
         new(key,query,value,proj,mask, config["attn_pdrop"], config["resid_pdrop"], config["n_head"])
     end
 end
-paramlist(c::CausalSelfAttention) = Iterators.flatten(paramlist.[c.key, c.query, c.value, c.proj])
-paramlist_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_decay.[c.key, c.query, c.value, c.proj])
-paramlist_no_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_no_decay.[c.key, c.query, c.value, c.proj])
+paramlist(c::CausalSelfAttention) = Iterators.flatten(paramlist.([c.key, c.query, c.value, c.proj]))
+paramlist_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_decay.([c.key, c.query, c.value, c.proj]))
+paramlist_no_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_no_decay.([c.key, c.query, c.value, c.proj]))
 
 function (c::CausalSelfAttention)(x)
     C, T, B = size(x)
@@ -152,9 +152,9 @@ struct Block
         new(ln1,ln2,attn,mlp)
     end
 end
-paramlist(b::Block) = Iterators.flatten(paramlist.[b.ln1, b.ln2, b.attn, b.mlp])
-paramlist_decay(b::Block) = Iterators.flatten(paramlist_decay.[b.ln1, b.ln2, b.attn, b.mlp])
-paramlist_no_decay(b::Block) = Iterators.flatten(paramlist_no_decay.[b.ln1, b.ln2, b.attn, b.mlp])
+paramlist(b::Block) = Iterators.flatten(paramlist.([b.ln1, b.ln2, b.attn, b.mlp]))
+paramlist_decay(b::Block) = Iterators.flatten(paramlist_decay.([b.ln1, b.ln2, b.attn, b.mlp]))
+paramlist_no_decay(b::Block) = Iterators.flatten(paramlist_no_decay.([b.ln1, b.ln2, b.attn, b.mlp]))
 
 
 function (b::Block)(x)

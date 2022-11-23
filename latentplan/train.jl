@@ -8,15 +8,24 @@ using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 using .VQVAE: VQContinuousVAE, configure_optimizer
 using Statistics: mean
 using Knet
+using Printf
 
 
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
-loss(model, batch) = losssum(model(batch...))
-lossgradient = grad(loss)
 
-function vq_train(config, model, dataset; n_epochs=1, log_freq=100)
+function vq_train(config, model::VQContinuousVAE, dataset; n_epochs=1, log_freq=100)
+    # set optimizers
+    opt_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=config["weight_decay"], gclip=config["grad_norm_clip"])
+    opt_no_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=0.0, gclip=config["grad_norm_clip"])
+
+    for p in paramlist_decay(model)
+        p.opt = clone(opt_decay)
+    end
+    for p in paramlist_no_decay(model)
+        p.opt = clone(opt_no_decay)
+    end
+
     n_tokens = 0
-
     loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
 
     for epoch in 1:n_epochs
@@ -39,15 +48,19 @@ function vq_train(config, model, dataset; n_epochs=1, log_freq=100)
             if config["lr_decay"]
                 lr = config["learning_rate"] * lr_mult
                 # TODO: param_group learning rate
+                for p in paramlist(model)
+                    p.opt.lr = lr
+                end
             else
                 lr = config["learning_rate"]
             end
 
             # forward the model
-            g = lossgradient(model, batch)
-            update(paramlist(model), g, lr=lr)
-            
-
+            total_loss = @diff losssum(model(batch...))
+            push!(losses, value(total_loss))
+            for p in paramlist(model)
+                update!(p, grad(total_loss, p))
+            end
         end
     end
 
@@ -143,5 +156,13 @@ model.padding_vector = normalize_joined_single(dataset, zeros(mode.transition_di
 warmup_tokens = length(dataset) * block_size
 final_tokens = 20 * warmup_tokens
 
+n_epochs = Int(1e6 / length(dataset) * args["n_epochs_ref"])
+save_freq = Int(n_epochs ÷ args["n_saves"])
+#TODO: wandb init
 
+for epoch in 1:n_epochs
+    @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
+    vq_train(config, model, dataset)
 
+    # TODO: model save
+end
