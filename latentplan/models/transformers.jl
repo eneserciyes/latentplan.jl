@@ -1,9 +1,5 @@
-module Transformers
 export CausalSelfAttention, Block, paramlist, paramlist_decay, paramlist_no_decay
 
-include("common.jl")
-using .Common: LayerNorm, Linear, GELU, Dropout, Chain
-using Knet: bmm, softmax
 using LinearAlgebra: UpperTriangular
 
 #=
@@ -181,5 +177,3 @@ end
 # function (a::AsymBlock)(x)
     
 # end
-
-end

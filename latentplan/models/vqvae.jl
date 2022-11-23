@@ -1,12 +1,6 @@
-module VQVAE
 export VQEmbeddingMovingAverage, VQEmbedding, VQStepWiseTransformer, VQContinuousVAE, paramlist, paramlist_no_decay, paramlist_decay
-include("common.jl")
-include("transformers.jl")
 
-using .Common
-using .Transformers
 using Statistics: mean
-using Knet
 using AutoGrad
 using Distributions: Uniform
 
@@ -413,7 +407,5 @@ function (v::VQContinuousVAE)(joined_inputs; targets=nothing, mask=nothing, term
         loss_commit = nothing
     end
     return reconstructed, reconstruction_loss, loss_vq, loss_commit
-
-end
 
 end

@@ -13,7 +13,7 @@ using Printf
 
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
 
-function vq_train(config, model::VQContinuousVAE, dataset; n_epochs=1, log_freq=100)
+function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_epochs=1, log_freq=100)
     # set optimizers
     opt_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=config["weight_decay"], gclip=config["grad_norm_clip"])
     opt_no_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=0.0, gclip=config["grad_norm_clip"])
@@ -26,7 +26,7 @@ function vq_train(config, model::VQContinuousVAE, dataset; n_epochs=1, log_freq=
     end
 
     n_tokens = 0
-    loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
+    loader = DataLoader(dataset, shuffle=true, batch_size=config["batch_size"])
 
     for epoch in 1:n_epochs
         losses = []
