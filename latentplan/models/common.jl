@@ -1,7 +1,5 @@
-module Common
 export Chain, Linear, ReLU, GELU, Dropout, Embedding, one_hot, LayerNorm, softmax, mse_loss, MaxPool1d, paramlist, paramlist_decay, paramlist_no_decay
 
-using Knet
 using Distributions: Normal, cdf, mean, std
 
 struct Chain
@@ -111,8 +109,6 @@ end
 (m::MaxPool1d)(x) = begin 
     pool_results = pool(reshape(x, size(x, 1), 1, 1); window=m.window, stride=m.stride)[:,1,1]
     reshape(pool_results, size(pool_results, 1), size(x)[2:end]...) 
-end
-
 end
 
 
