@@ -229,7 +229,6 @@ paramlist_decay(v::VQStepWiseTransformer) = Iterators.flatten(
 )
 
 function encode(v::VQStepWiseTransformer, joined_inputs)
-    joined_inputs = convert.(Float32, joined_inputs)
     _, t, _ = size(joined_inputs)
     @assert t <= v.block_size
 
@@ -363,10 +362,10 @@ end
 
 function (v::VQContinuousVAE)(joined_inputs; targets=nothing, mask=nothing, terminals=nothing)
     joined_dimension, t, b = size(joined_inputs)
-    padded = repeat(convert(Float32, v.padding_vector), (1, t, b))
+    padded = repeat(v.padding_vector, 1, t, b)
 
     if !(terminals === nothing)
-        terminal_mask = repeat(deepcopy(1 .- terminals), (size(joined_inputs, 1), 1, 1))
+        terminal_mask = repeat(deepcopy(.~terminals), size(joined_inputs, 1), 1, 1)
         joined_inputs = joined_inputs .* terminal_mask .+ padded .* (1 .- terminal_mask)
     end
     state = joined_inputs[1:v.observation_dim, 1, :]

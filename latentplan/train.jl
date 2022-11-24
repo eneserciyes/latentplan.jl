@@ -1,12 +1,15 @@
 using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 using Statistics: mean
 using Printf
+using Knet
+using Debugger: @enter
 
 include("LPCore.jl")
 include("setup.jl")
 using .LPCore
 
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
+clone(a::AdamW)=AdamW(a.lr,a.beta1,a.beta2,a.eps,0,a.gclip,a.weight_decay,nothing,nothing)
 
 function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_epochs=1, log_freq=100)
     # set optimizers
@@ -143,20 +146,35 @@ model_config["transition_dim"] = transition_dim
 model_config["n_embd"] = args["n_embd"] * args["n_head"]
 model_config["vocab_size"] = args["N"]
 
+
 model = VQContinuousVAE(model_config)
 
-model.padding_vector = normalize_joined_single(dataset, zeros(mode.transition_dim-1))
+model.padding_vector = normalize_joined_single(dataset, zeros(Float32, model.transition_dim-1))
 
 warmup_tokens = length(dataset) * block_size
 final_tokens = 20 * warmup_tokens
 
-n_epochs = Int32(1e6 / length(dataset) * args["n_epochs_ref"])
-save_freq = Int32(n_epochs ÷ args["n_saves"])
+n_epochs = 1e6 / length(dataset) * args["n_epochs_ref"]
+save_freq = n_epochs ÷ args["n_saves"]
 #TODO: wandb init
+
+# training config
+trainer_config = Dict(
+    "batch_size" => args["batch_size"],
+    "learning_rate" => args["learning_rate"],
+    "betas" => (0.9, 0.95),
+    "weight_decay" => 0.1,
+    "grad_norm_clip" => 1.0,
+    "warmup_tokens" => warmup_tokens,
+    "kl_warmup_tokens" => warmup_tokens * 10,
+    "final_tokens" => final_tokens,
+    "lr_decay" => args["lr_decay"],
+)
+
 
 for epoch in 1:n_epochs
     @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
-    vq_train(config, model, dataset)
+    @enter vq_train(trainer_config, model, dataset)
 
     # TODO: model save
 end
