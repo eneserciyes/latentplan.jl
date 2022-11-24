@@ -205,9 +205,9 @@ function denormalize(s::SequenceDataset, states, actions, rewards, values)
 end
 
 function normalize_joined_single(s::SequenceDataset, joined)
-    joined_std = cat([s.obs_std[:, 1], s.act_std[:, 1], [s.reward_std], [s.value_std]])
-    joined_mean = cat([s.obs_mean[:, 1], s.act_mean[:, 1], [s.reward_mean], [s.value_mean]])
-    return (joined .- joined_mean) / joined_std
+    joined_std = vcat(s.obs_std[:, 1], s.act_std[:, 1], [s.reward_std;], [s.value_std;])
+    joined_mean = vcat(s.obs_mean[:, 1], s.act_mean[:, 1], [s.reward_mean;], [s.value_mean;])
+    return (joined .- joined_mean) ./ joined_std
 end
 
 function denormalize_joined(s::SequenceDataset, joined)

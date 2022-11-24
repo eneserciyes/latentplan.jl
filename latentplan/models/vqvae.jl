@@ -362,7 +362,6 @@ end
 
 
 function (v::VQContinuousVAE)(joined_inputs; targets=nothing, mask=nothing, terminals=nothing)
-    joined_inputs = convert(Float32, joined_inputs)
     joined_dimension, t, b = size(joined_inputs)
     padded = repeat(convert(Float32, v.padding_vector), (1, t, b))
 
