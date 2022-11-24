@@ -105,9 +105,10 @@ struct MaxPool1d
     end
 end
 
-(m::MaxPool1d)(x) = begin 
-    pool_results = pool(reshape(x, size(x, 1), 1, 1); window=m.window, stride=m.stride)[:,1,1]
-    reshape(pool_results, size(pool_results, 1), size(x)[2:end]...) 
+(m::MaxPool1d)(x) = begin
+    pooled_size = Int(floor((size(x)[1] - m.window) / m.stride) + 1)
+    pool_results = pool(reshape(x, size(x, 1), 1, :); window=m.window, stride=m.stride)
+    reshape(pool_results, pooled_size, size(x)[2:end]...) 
 end
 
 

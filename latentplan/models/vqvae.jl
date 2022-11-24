@@ -241,10 +241,10 @@ function encode(v::VQStepWiseTransformer, joined_inputs)
     position_embeddings = v.pos_emb[:, 1:t, :]  # each position maps to a (learnable) vector
     ## [embedding_dim x T x B]
     x = v.drop(token_embeddings .+ position_embeddings)
-    @bp
     x = v.encoder(x)
+    @bp
     ## [embedding_dim x T x B]
-    x = reshape(v.latent_pooling(permutedims(x, (2, 1, 3))), (2,1,3)) # pooling (not attention)
+    x = permutedims(v.latent_pooling(permutedims(x, (2, 1, 3))), (2,1,3)) # pooling (not attention)
     ## [embedding_dim x (T//latent_step) x B]
     x = v.cast_embed(x)
     return x
