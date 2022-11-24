@@ -174,7 +174,7 @@ struct VQStepWiseTransformer
             residual = config["residual"]
         end
         decoder = Chain([Block(config) for _ in 1:config["n_layer"]]...)
-        pos_emb = Param(zeros(config["n_embd"], trajectory_length, 1))
+        pos_emb = Param(zeros(Float32, config["n_embd"], trajectory_length, 1))
         embed = Linear(transition_dim, embedding_dim)
         predict = Linear(embedding_dim, transition_dim)
         cast_embed = Linear(embedding_dim, latent_size)
@@ -207,7 +207,7 @@ struct VQStepWiseTransformer
 end
 
 paramlist(v::VQStepWiseTransformer) = begin
-    model_params = collect(
+    model_params = collect(Param,
         Iterators.flatten(
             paramlist.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f])
         )
@@ -216,7 +216,7 @@ paramlist(v::VQStepWiseTransformer) = begin
     model_params
 end
 paramlist_no_decay(v::VQStepWiseTransformer) = begin
-    model_params = collect(
+    model_params = collect(Param,
         Iterators.flatten(
             paramlist_no_decay.([v.encoder, v.decoder, v.codebook, v.embed, v.predict,v.cast_embed, v.latent_mixing, v.ln_f])
         )

@@ -128,7 +128,7 @@ end
 
 block_size = args["subsampled_sequence_length"] * transition_dim # total number of dimensionalities for a maximum length sequence (T)
 
-print(
+println(
     "Dataset size: $(length(dataset)) |
     Joined dim: $transition_dim
     observation: $obs_dim, action: $act_dim | Block size: $block_size"
@@ -172,9 +172,9 @@ trainer_config = Dict(
 )
 
 
-for epoch in 1:n_epochs
-    @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
-    @enter vq_train(trainer_config, model, dataset)
+# for epoch in 1:n_epochs
+#     @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
+#     @enter vq_train(trainer_config, model, dataset)
 
-    # TODO: model save
-end
+#     # TODO: model save
+# end
