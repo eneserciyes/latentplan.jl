@@ -2,7 +2,7 @@ using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 using Statistics: mean
 using Printf
 using Knet
-using Debugger: @enter
+using Debugger: @enter, @bp, @run
 
 include("LPCore.jl")
 include("setup.jl")
@@ -24,13 +24,14 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
     end
 
     n_tokens = 0
-    loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
+    loader = DataLoader(dataset; shuffle=false, batch_size=config["batch_size"])
 
     for epoch in 1:n_epochs
         losses = []
         for (it, batch) in enumerate(loader)
             y = batch[end-1]
-            n_tokens += cumprod(size(y))
+            @bp
+            n_tokens += prod(size(y))
 
             if n_tokens < config["warmup_tokens"]
                 # linear warmup
@@ -154,8 +155,8 @@ model.padding_vector = normalize_joined_single(dataset, zeros(Float32, model.tra
 warmup_tokens = length(dataset) * block_size
 final_tokens = 20 * warmup_tokens
 
-n_epochs = 1e6 / length(dataset) * args["n_epochs_ref"]
-save_freq = n_epochs ÷ args["n_saves"]
+n_epochs = Int(floor(1e6 / length(dataset) * args["n_epochs_ref"]))
+save_freq = Int(floor(n_epochs / args["n_saves"]))
 #TODO: wandb init
 
 # training config
@@ -170,7 +171,6 @@ trainer_config = Dict(
     "final_tokens" => final_tokens,
     "lr_decay" => args["lr_decay"],
 )
-
 
 # for epoch in 1:n_epochs
 #     @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])

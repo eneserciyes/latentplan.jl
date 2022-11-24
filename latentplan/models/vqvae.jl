@@ -3,6 +3,7 @@ export VQEmbeddingMovingAverage, VQEmbedding, VQStepWiseTransformer, VQContinuou
 using Statistics: mean
 using AutoGrad
 using Distributions: Uniform
+using Debugger: @bp
 
 # VectorQuantization
 function vq(inputs::Array{Float32}, codebook::Matrix{Float32})
@@ -90,6 +91,7 @@ function (v::VQEmbeddingMovingAverage)(z_e_x)
 end
 
 function straight_through(v::VQEmbeddingMovingAverage, z_e_x, train::Bool=true)
+    @bp
     D, K = size(v.embedding)
     z_q_x, indices = vq_st(z_e_x, v.embedding)
     
@@ -271,6 +273,7 @@ end
 
 
 function (v::VQStepWiseTransformer)(joined_inputs, state)
+    @bp
     trajectory_feature = encode(v,joined_inputs)
     latents_st, latents = straight_through(v.codebook, trajectory_feature)
     # no bottleneck attention here
@@ -360,7 +363,8 @@ end
 ## TODO: decode_from_indices if necessary
 
 
-function (v::VQContinuousVAE)(joined_inputs; targets=nothing, mask=nothing, terminals=nothing)
+function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, terminals=nothing)
+    @bp
     joined_dimension, t, b = size(joined_inputs)
     padded = repeat(v.padding_vector, 1, t, b)
 

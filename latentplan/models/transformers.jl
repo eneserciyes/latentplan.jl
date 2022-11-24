@@ -1,6 +1,7 @@
 export CausalSelfAttention, Block, paramlist, paramlist_decay, paramlist_no_decay
 
 using LinearAlgebra: UpperTriangular
+using Debugger: @bp
 
 struct CausalSelfAttention; 
     key::Linear; query::Linear; value::Linear; 
@@ -27,6 +28,7 @@ paramlist_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_decay.([c.
 paramlist_no_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_no_decay.([c.key, c.query, c.value, c.proj]))
 
 function (c::CausalSelfAttention)(x)
+    @bp
     C, T, B = size(x)
 
     k = permutedims(reshape(c.key(x), (C ÷ c.n_head, c.n_head, T, B)), (1, 3, 2, 4)) # hs, T, nh, B
