@@ -240,7 +240,8 @@ function encode(v::VQStepWiseTransformer, joined_inputs)
     ## [embedding_dim x T x 1]
     position_embeddings = v.pos_emb[:, 1:t, :]  # each position maps to a (learnable) vector
     ## [embedding_dim x T x B]
-    x = v.drop(token_embeddings + position_embeddings)
+    x = v.drop(token_embeddings .+ position_embeddings)
+    @bp
     x = v.encoder(x)
     ## [embedding_dim x T x B]
     x = reshape(v.latent_pooling(permutedims(x, (2, 1, 3))), (2,1,3)) # pooling (not attention)
@@ -273,7 +274,6 @@ end
 
 
 function (v::VQStepWiseTransformer)(joined_inputs, state)
-    @bp
     trajectory_feature = encode(v,joined_inputs)
     latents_st, latents = straight_through(v.codebook, trajectory_feature)
     # no bottleneck attention here
@@ -364,7 +364,6 @@ end
 
 
 function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, terminals=nothing)
-    @bp
     joined_dimension, t, b = size(joined_inputs)
     padded = repeat(v.padding_vector, 1, t, b)
 
@@ -376,7 +375,7 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
     ## [ embedding_dim X T x B ]
 
     # forward the GPT model
-    reconstructed, latents, feature = v.model(cat((joined_inputs, terminals), dims=1), state)
+    reconstructed, latents, feature = v.model(cat(joined_inputs, terminals, dims=1), state)
     pred_trajectory = reshape(reconstructed[1:end-1, :, :], (joined_dimension, t, b))
     pred_terminals = reshape(reconstructed[end, :, :], 1,1,size(reconstructed)[2:end]...)
 

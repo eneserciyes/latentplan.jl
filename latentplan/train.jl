@@ -4,6 +4,14 @@ using Printf
 using Knet
 using Debugger: @enter, @bp, @run
 
+# only while debugging
+using JuliaInterpreter
+using MethodAnalysis
+visit(Base) do item
+    isa(item, Module) && push!(JuliaInterpreter.compiled_modules, item)
+    true
+end
+
 include("LPCore.jl")
 include("setup.jl")
 using .LPCore
@@ -30,7 +38,6 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
         losses = []
         for (it, batch) in enumerate(loader)
             y = batch[end-1]
-            @bp
             n_tokens += prod(size(y))
 
             if n_tokens < config["warmup_tokens"]
@@ -46,7 +53,6 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
 
             if config["lr_decay"]
                 lr = config["learning_rate"] * lr_mult
-                # TODO: param_group learning rate
                 for p in paramlist(model)
                     p.opt.lr = lr
                 end
@@ -55,7 +61,8 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
             end
 
             # forward the model
-            total_loss = @diff losssum(model(batch...))
+            # total_loss = @diff losssum(model(batch...))
+            total_loss = losssum(model(batch...))
             push!(losses, value(total_loss))
             for p in paramlist(model)
                 update!(p, grad(total_loss, p))
