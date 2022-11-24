@@ -27,7 +27,7 @@ struct ReLU; end
 (r::ReLU)(x) = relu.(x)
 
 struct GELU; end
-(g::GELU)(x) = x .* cdf.(Normal(), x)
+(g::GELU)(x) = x .* Float32.(cdf.(Normal(), x))
 
 struct Dropout 
     pdrop
@@ -67,9 +67,9 @@ paramlist(l::LayerNorm) = [l.a, l.b]
 paramlist_decay(l::LayerNorm) = []
 paramlist_no_decay(l::LayerNorm) = [l.a, l.b]
 
-function LayerNorm(dmodel; eps=1e-5)
-    a = param(dmodel; init=ones)
-    b = param(dmodel; init=zeros)
+function LayerNorm(dmodel; eps=Float32(1e-5))
+    a = param(Float32, dmodel; init=ones)
+    b = param(Float32, dmodel; init=zeros)
     LayerNorm(a, b, eps)
 end
 

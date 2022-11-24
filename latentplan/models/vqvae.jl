@@ -76,8 +76,8 @@ mutable struct VQEmbeddingMovingAverage
     ema_w
 
     function VQEmbeddingMovingAverage(D, K; decay=0.99f0)
-        embedding = rand(Uniform(-1/K, 1/K), (D, K))
-        ema_count = ones(K)
+        embedding = Float32.(rand(Uniform(-1/K, 1/K), (D, K)))
+        ema_count = ones(Float32, K)
         ema_w = deepcopy(embedding)
         new(embedding, decay, ema_count, ema_w)
     end
@@ -91,7 +91,6 @@ function (v::VQEmbeddingMovingAverage)(z_e_x)
 end
 
 function straight_through(v::VQEmbeddingMovingAverage, z_e_x, train::Bool=true)
-    @bp
     D, K = size(v.embedding)
     z_q_x, indices = vq_st(z_e_x, v.embedding)
     
@@ -231,6 +230,7 @@ paramlist_decay(v::VQStepWiseTransformer) = Iterators.flatten(
 )
 
 function encode(v::VQStepWiseTransformer, joined_inputs)
+    @bp
     _, t, _ = size(joined_inputs)
     @assert t <= v.block_size
 
@@ -242,7 +242,6 @@ function encode(v::VQStepWiseTransformer, joined_inputs)
     ## [embedding_dim x T x B]
     x = v.drop(token_embeddings .+ position_embeddings)
     x = v.encoder(x)
-    @bp
     ## [embedding_dim x T x B]
     x = permutedims(v.latent_pooling(permutedims(x, (2, 1, 3))), (2,1,3)) # pooling (not attention)
     ## [embedding_dim x (T//latent_step) x B]
@@ -275,6 +274,7 @@ end
 
 function (v::VQStepWiseTransformer)(joined_inputs, state)
     trajectory_feature = encode(v,joined_inputs)
+    @bp
     latents_st, latents = straight_through(v.codebook, trajectory_feature)
     # no bottleneck attention here
     joined_pred = decode(v, latents_st, state)

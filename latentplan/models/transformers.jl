@@ -15,7 +15,7 @@ struct CausalSelfAttention;
         value = Linear(config["n_embd"], config["n_embd"])
         proj = Linear(config["n_embd"], config["n_embd"])
         
-        mask = Matrix(UpperTriangular(ones(config["block_size"],config["block_size"])))
+        mask = Matrix(UpperTriangular(ones(Float32, config["block_size"],config["block_size"])))
         if haskey(config, "action_dim")
             joined_dim = config["observation_dim"] + config["action_dim"] + 2
             mask[joined_dim:joined_dim:end,:, :, :] .= 0
@@ -36,7 +36,7 @@ function (c::CausalSelfAttention)(x)
     v = permutedims(reshape(c.value(x), (C ÷ c.n_head, c.n_head, T, B)), (1, 3, 2, 4)) # hs, T, nh, B
     
     # (T, hs, nh, B) x (hs, T, nh, B) -> (T, T, nh, B)
-    att = bmm(permutedims(k, (2,1,3,4)), q) .* (1 / sqrt(size(k, 1)))
+    att = bmm(permutedims(k, (2,1,3,4)), q) .* Float32(1 / sqrt(size(k, 1)))
     att[c.mask[1:T,1:T] .== 0, :, :] .= -Inf
     att = softmax(att, dims=1)
     att_drop = dropout(att, c.attn_drop)
@@ -74,6 +74,7 @@ paramlist_no_decay(b::Block) = Iterators.flatten(paramlist_no_decay.([b.ln1, b.l
 
 
 function (b::Block)(x)
+    @bp
     x = x .+  b.attn(b.ln1(x))
     x = x .+ b.mlp(b.ln2(x))
     return x
