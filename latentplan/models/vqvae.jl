@@ -230,7 +230,6 @@ paramlist_decay(v::VQStepWiseTransformer) = Iterators.flatten(
 )
 
 function encode(v::VQStepWiseTransformer, joined_inputs)
-    @bp
     _, t, _ = size(joined_inputs)
     @assert t <= v.block_size
 
@@ -255,18 +254,18 @@ function decode(v::VQStepWiseTransformer, latents, state)
     if !v.state_conditional
         state_flat = zeros(size(state_flat))
     end
-    inputs = cat((state_flat, latents), dims=1)
+    inputs = cat(state_flat, latents, dims=1)
     inputs = v.latent_mixing(inputs)
     inputs = repeat(inputs, inner=(1, v.latent_step, 1))
 
-    inputs = inputs + v.pos_emb[:, 1:size(inputs, 1), :]
+    inputs = inputs .+ v.pos_emb[:, 1:size(inputs, 2), :]
     x = v.decoder(inputs)
     x = v.ln_f(x)
 
     ## [obs_dim x T x B]
     joined_pred = v.predict(x)
     joined_pred[end, :, :] = sigm.(joined_pred[end, :, :])
-    joined_pred[1:v.observation_dim, :, :] += reshape(state, (B, 1, :))
+    joined_pred[1:v.observation_dim, :, :] .+= reshape(state, (:, 1, B))
 
     return joined_pred
 end
@@ -274,7 +273,6 @@ end
 
 function (v::VQStepWiseTransformer)(joined_inputs, state)
     trajectory_feature = encode(v,joined_inputs)
-    @bp
     latents_st, latents = straight_through(v.codebook, trajectory_feature)
     # no bottleneck attention here
     joined_pred = decode(v, latents_st, state)
@@ -377,22 +375,23 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
     # forward the GPT model
     reconstructed, latents, feature = v.model(cat(joined_inputs, terminals, dims=1), state)
     pred_trajectory = reshape(reconstructed[1:end-1, :, :], (joined_dimension, t, b))
-    pred_terminals = reshape(reconstructed[end, :, :], 1,1,size(reconstructed)[2:end]...)
-
+    pred_terminals = reshape(reconstructed[end, :, :], 1,size(reconstructed)[2:end]...)
+    @bp
     if !(targets === nothing)
         # compute the loss
-        weights = cat([
+        weights = cat(
             ones(2) .* v.position_weight,
             ones(v.observation_dim - 2),
             ones(v.action_dim) .* v.action_weight,
             ones(1) .* v.reward_weight,
             ones(1) .* v.value_weight,
-        ])
+            dims=1
+        )
 
         mse = mse_loss(pred_trajectory, joined_inputs, reduction="none") .* reshape(weights, (:, 1, 1))
         first_action_loss = v.first_action_weight .* mse_loss(
-            joined_inputs[observation_dim:observation_dim+action_dim, 1, :], 
-            pred_trajectory[observation_dim:observation_dim+action_dim, 1, :]
+            joined_inputs[v.observation_dim+1:v.observation_dim+v.action_dim, 1, :], 
+            pred_trajectory[v.observation_dim+1:v.observation_dim+v.action_dim, 1, :]
         )
         sum_reward_loss = v.sum_reward_weight .* mse_loss(
             mean(joined_inputs[end-1, :, :], dims=1), 
@@ -402,16 +401,16 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
             joined_inputs[end, end, :], 
             pred_trajectory[end, end, :]
         )
-        cross_entropy = bce(pred_terminals, clamp.(convert(Float32, terminals),0.0, 1.0))
+        cross_entropy = bce(pred_terminals, clamp.(convert.(Float32, terminals),0.0f0, 1.0f0))
         reconstruction_loss = mean((mse .* mask .* terminal_mask)) + cross_entropy
         reconstruction_loss = reconstruction_loss + first_action_loss + sum_reward_loss + last_value_loss
 
         if v.model.ma_update
             loss_vq = 0
         else
-            loss_vq = mse_loss(latents, feature)
+            loss_vq = mse_loss(latents, feature) #TODO: check value is needed here for detach
         end
-        loss_commit = mse_loss(feature, latents)
+        loss_commit = mse_loss(feature, latents) #TODO: check value is needed here for detach
     else
         reconstruction_loss = nothing
         loss_vq = nothing

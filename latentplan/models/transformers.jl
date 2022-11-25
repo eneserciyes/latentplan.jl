@@ -28,7 +28,6 @@ paramlist_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_decay.([c.
 paramlist_no_decay(c::CausalSelfAttention) = Iterators.flatten(paramlist_no_decay.([c.key, c.query, c.value, c.proj]))
 
 function (c::CausalSelfAttention)(x)
-    @bp
     C, T, B = size(x)
 
     k = permutedims(reshape(c.key(x), (C ÷ c.n_head, c.n_head, T, B)), (1, 3, 2, 4)) # hs, T, nh, B
@@ -74,7 +73,6 @@ paramlist_no_decay(b::Block) = Iterators.flatten(paramlist_no_decay.([b.ln1, b.l
 
 
 function (b::Block)(x)
-    @bp
     x = x .+  b.attn(b.ln1(x))
     x = x .+ b.mlp(b.ln2(x))
     return x

@@ -90,7 +90,7 @@ function mse_loss(x, y; reduction="mean")
     elseif reduction == "sum"
         return sum((x .- y).^2)
     elseif reduction == "none"
-        return sum((x .- y).^2, dims=1:ndims(x)-1)
+        return (x .- y).^2
     end
 end
 
