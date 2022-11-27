@@ -16,7 +16,7 @@ paramlist_decay(c::Any) = []
 paramlist_no_decay(c::Any) = []
 
 struct Linear; w; b; pdrop; end
-Linear(in_dim, out_dim; pdrop=0) = Linear(param(out_dim,in_dim), param0(out_dim), pdrop)
+Linear(in_dim, out_dim; pdrop=0) = Linear(param(out_dim,in_dim, init=(a...)->gaussian(a...;mean=0,std=0.02)), param0(out_dim), pdrop)
 (l::Linear)(x) = reshape(l.w * reshape(dropout(x, l.pdrop), size(x)[1], :), size(l.w)[1], size(x)[2:end]...) .+ l.b
 
 paramlist(l::Linear) = Iterators.flatten([paramlist_decay(l), paramlist_no_decay(l)])

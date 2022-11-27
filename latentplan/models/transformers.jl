@@ -1,7 +1,6 @@
 export CausalSelfAttention, Block, paramlist, paramlist_decay, paramlist_no_decay
 
 using LinearAlgebra: UpperTriangular
-using Debugger: @bp
 
 struct CausalSelfAttention; 
     key::Linear; query::Linear; value::Linear; 
