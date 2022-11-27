@@ -419,3 +419,68 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
     return reconstructed, reconstruction_loss, loss_vq, loss_commit
 
 end
+
+
+mutable struct TransformerPrior
+    tok_emb::Embedding
+    pos_emb::Param
+    state_emb::Linear
+    drop::Dropout
+    blocks::Chain
+    ln_f::LayerNorm
+    head::Linear
+    observation_dim
+    vocab_size
+    block_size
+    embedding_dim
+
+    function TransformerPrior(config)
+        tok_emb = Embedding(config["n_embd"], config["K"])
+        pos_emb = Param(atype(zeros(Float32, config["block_size"], config["n_embd"], 1)))
+        state_emb = Linear(config["observation_dim"], config["n_embd"])
+        drop = Dropout(config["embd_pdrop"])
+        blocks = Chain([Block(config) for _ in 1:config["n_layer"]]...)
+        ln_f = LayerNorm(config["n_embd"])
+        head = Linear(config["n_embd"], config["K"]; bias=false)
+        observation_dim = config["observation_dim"]
+        vocab_size = config["K"]
+        block_size = config["block_size"]
+        embedding_dim = config["n_embd"]
+
+        new(tok_emb, pos_emb, state_emb, drop, blocks, ln_f, head, observation_dim, vocab_size, block_size, embedding_dim)
+    end
+end
+
+function (t::TransformerPrior)(idx, state, targets=nothing)
+    if !(idx === nothing)
+        t, b = size(idx)
+        @assert t <= t.block_size  "Cannot forward, model block size is exhausted."
+        token_embeddings = t.tok_emb(idx) # each index maps to a (learnable) vector
+        token_embeddings = cat(atype(zeros(Float32, t.embedding_dim, 1, b)), token_embeddings, dims=2)
+    else
+        b = 1; t =0
+        token_embeddings = atype(zeros(t.embedding_dim, 1, b))
+    end
+
+    ## [ embedding_dim x T+1 x 1 ]
+    position_embeddings = t.pos_emb[:, 1:t+1, :]
+    state_embeddings = reshape(t.state_emb(state), 1, :)
+    ## [ embedding_dim x T+1 x 1 ]
+    x = t.drop(token_embeddings .+ position_embeddings .+ state_embeddings)
+    x = t.blocks(x)
+    ## [ embedding_dim x T+1 x 1 ]
+    x = t.ln_f(x)
+
+    logits = t.head(x)
+    logits = reshape(logits, (t.vocab_size, t+1, b))
+    logits = logits[:, 1:t+1]
+
+    if !(targets === nothing)
+        logits = reshape(logits, t.vocab_size, :)
+        targets = reshape(targets, :)
+        loss = nll(logits, targets)
+    else
+        loss = nothing
+    end
+    return logits, loss
+end
