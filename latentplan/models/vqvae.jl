@@ -6,7 +6,7 @@ using Distributions: Uniform
 using Debugger: @bp
 
 # VectorQuantization
-function vq(inputs::Array{Float32}, codebook::Matrix{Float32})
+function vq(inputs::atype, codebook::atype)
     embedding_size = size(codebook,1)
     inputs_size = size(inputs)
     inputs_flatten = reshape(inputs, (embedding_size, :))
@@ -21,7 +21,7 @@ function vq(inputs::Array{Float32}, codebook::Matrix{Float32})
 end
 
 # VectorQuantizationStraightThrough
-function vq_st(inputs::Array{Float32}, codebook::Matrix{Float32})
+function vq_st(inputs::atype, codebook::atype)
     indices = vq(inputs, codebook)
     indices_flatten = reshape(indices, :)
     codes_flatten = codebook[:, indices]
@@ -34,7 +34,7 @@ function vq_st_codebook_backprop(codebook, output, grad_output)
     _, indices = output
     embedding_size = size(codebook, 1)
     grad_output_flatten = reshape(grad_output[1], (embedding_size, :))
-    grad_codebook = zeros(Float32, size(codebook))
+    grad_codebook = atype(zeros(Float32, size(codebook)))
     grad_codebook[:, indices] += grad_output_flatten
     return grad_codebook
 end
@@ -58,12 +58,12 @@ paramlist(v::VQEmbedding) = paramlist(v.embedding)
 paramlist_decay(v::VQEmbedding) = paramlist_decay(v.embedding)
 paramlist_no_decay(v::VQEmbedding) = paramlist_no_decay(v.embedding)
 
-function (v::VQEmbedding)(z_e_x::Array{Float32})
+function (v::VQEmbedding)(z_e_x::atype)
     latents = vq(z_e_x, v.embedding.weight)
     return latents
 end
 
-function (v::VQEmbedding)(z_e_x::Array{Float32}, straight_through::Bool)
+function (v::VQEmbedding)(z_e_x::atype, straight_through::Bool)
     z_q_x, indices = vq_st(z_e_x, v.embedding.weight)
     z_q_x_bar = v.embedding.weight[:, indices]
     return z_q_x, z_q_x_bar
@@ -76,8 +76,8 @@ mutable struct VQEmbeddingMovingAverage
     ema_w
 
     function VQEmbeddingMovingAverage(D, K; decay=0.99f0)
-        embedding = Float32.(rand(Uniform(-1/K, 1/K), (D, K)))
-        ema_count = ones(Float32, K)
+        embedding = atype(Float32.(rand(Uniform(-1/K, 1/K), (D, K))))
+        ema_count = atype(ones(Float32, K))
         ema_w = deepcopy(embedding)
         new(embedding, decay, ema_count, ema_w)
     end
@@ -95,7 +95,7 @@ function straight_through(v::VQEmbeddingMovingAverage, z_e_x, train::Bool=true)
     z_q_x, indices = vq_st(z_e_x, v.embedding)
     
     if train
-        encodings = one_hot(Float32, indices, K)
+        encodings = atype(one_hot(Float32, indices, K))
         v.ema_count = v.decay .* v.ema_count + (1 - v.decay) .* sum(encodings, dims=2)[:, 1]
         dw = reshape(z_e_x, (D, :)) * transpose(encodings) 
         v.ema_w = v.decay .* v.ema_w + (1 - v.decay) .* dw
@@ -175,7 +175,7 @@ struct VQStepWiseTransformer
             residual = config["residual"]
         end
         decoder = Chain([Block(config) for _ in 1:config["n_layer"]]...)
-        pos_emb = Param(zeros(Float32, config["n_embd"], trajectory_length, 1))
+        pos_emb = Param(atype(zeros(Float32, config["n_embd"], trajectory_length, 1)))
         embed = Linear(transition_dim, embedding_dim)
         predict = Linear(embedding_dim, transition_dim)
         cast_embed = Linear(embedding_dim, latent_size)
@@ -401,7 +401,7 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
             joined_inputs[end, end, :], 
             pred_trajectory[end, end, :]
         )
-        cross_entropy = binary_cross_entropy(pred_terminals, clamp.(convert.(Float32, terminals),0.0f0, 1.0f0))
+        cross_entropy = binary_cross_entropy(pred_terminals, atype(clamp.(convert.(Float32, terminals),0.0f0, 1.0f0)))
         reconstruction_loss = mean((mse .* mask .* terminal_mask)) + cross_entropy
         reconstruction_loss = reconstruction_loss + first_action_loss + sum_reward_loss + last_value_loss
 

@@ -124,6 +124,7 @@ dataset = SequenceDataset(
     normalize_raw=args["normalize"], 
     normalize_reward=args["normalize_reward"],
     max_path_length=args["max_path_length"],
+    atype=atype
 )
 
 obs_dim = dataset.observation_dim
@@ -157,7 +158,7 @@ model_config["vocab_size"] = args["N"]
 
 model = VQContinuousVAE(model_config)
 
-model.padding_vector = normalize_joined_single(dataset, zeros(Float32, model.transition_dim-1))
+model.padding_vector = normalize_joined_single(dataset, atype(zeros(Float32, model.transition_dim-1)))
 
 warmup_tokens = length(dataset) * block_size
 final_tokens = 20 * warmup_tokens

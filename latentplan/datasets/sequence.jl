@@ -85,11 +85,12 @@ struct SequenceDataset;
     observation_dim;
     action_dim;
     joined_dim;
+    atype;
 
     function SequenceDataset(env; sequence_length=250, step=10, 
         discount=0.99, max_path_length=1000,
         penalty=nothing, device::String="cuda:0", normalize_raw::Bool=true, normalize_reward::Bool=true,
-        train_portion=1.0, disable_goal::Bool=false)
+        train_portion=1.0, disable_goal::Bool=false, atype=Knet.atype())
     
         @printf("[ datasets/sequence ] Sequence length: %d | Step: %d | Max path length: %d\n", sequence_length, step, max_path_length)
         
@@ -190,7 +191,7 @@ struct SequenceDataset;
             rewards_segmented, discount, discounts,
             values_segmented, values_raw, value_mean, value_std,
             train_portion, test_portion, indices, test_indices,
-            observation_dim, action_dim, joined_dim
+            observation_dim, action_dim, joined_dim, atype
         )
     end
 end
@@ -240,8 +241,8 @@ function get_item(s::SequenceDataset, idx)
     mask = ones(Bool, size(joined))
     mask[:, traj_inds .>= s.max_path_length - s.step + 1] .= 0 #TODO: burada bir seyler olabilir
     terminal = (.~cumprod(.~(reshape(s.termination_flags[start_ind:s.step:end_ind-1, path_ind], 1, :, 1)), dims=1))[:,:,1]
-    X = joined[:, 1:end-1]
-    Y = joined[:, 2:end]
+    X = convert(s.atype, joined[:, 1:end-1])
+    Y = convert(s.atype, joined[:, 2:end])
     mask = mask[:,1:end-1]
     terminal = terminal[:, 1:end-1]
     return X, Y, mask, terminal
