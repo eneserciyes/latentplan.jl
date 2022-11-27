@@ -85,12 +85,24 @@ function softmax(w; dims)
 end
 
 function mse_loss(x, y; reduction="mean")
+    loss = (x .- y).^2
     if reduction == "mean"
-        return sum((x .- y).^2) / size(x)[end]
+        return mean(loss)
     elseif reduction == "sum"
-        return sum((x .- y).^2)
+        return sum(loss)
     elseif reduction == "none"
-        return (x .- y).^2
+        return loss
+    end
+end
+
+function binary_cross_entropy(probs,labels; reduction="mean")
+    loss = -(labels .* log.(probs) .+ (1 .- labels) .* log.(1 .- probs))
+    if reduction == "mean"
+        mean(loss)
+    elseif reduction == "sum"
+        sum(loss)
+    elseif reduction == "none"
+        return loss
     end
 end
 
