@@ -184,5 +184,7 @@ trainer_config = Dict(
 #     @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
 #     @enter vq_train(trainer_config, model, dataset)
 
+#     save_epoch = (epoch + 1) ÷ save_freq * save_freq
+#     statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
 #     # TODO: model save
 # end
