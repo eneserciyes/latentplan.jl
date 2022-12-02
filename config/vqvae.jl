@@ -57,9 +57,9 @@ export Train
     lr_decay = false
     seed = 42
 
-    embd_pdrop = 0.1
-    resid_pdrop = 0.1
-    attn_pdrop = 0.1
+    embd_pdrop = 0.0
+    resid_pdrop = 0.0
+    attn_pdrop = 0.0
 
     step = 1
     subsampled_sequence_length = 25
