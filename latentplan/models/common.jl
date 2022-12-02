@@ -1,6 +1,8 @@
 export Chain, Linear, ReLU, GELU, Dropout, Embedding, one_hot, LayerNorm, softmax, mse_loss, MaxPool1d, paramlist, paramlist_decay, paramlist_no_decay
 
-using Distributions: Normal, cdf, mean, std
+using Statistics: mean, var, std
+using Knet.Ops21: gelu
+# include("gelu.jl")
 
 struct Chain
     layers
@@ -27,7 +29,7 @@ struct ReLU; end
 (r::ReLU)(x) = relu.(x)
 
 struct GELU; end
-(g::GELU)(x) = x .* Float32.(cdf.(Normal(), x))
+(g::GELU)(x) = gelu.(x)
 
 struct Dropout 
     pdrop
@@ -75,8 +77,9 @@ end
 
 function (l::LayerNorm)(x, o...)
     μ = mean(x,dims=1)
-    σ = std(x,mean=μ,dims=1, corrected=false)
-    l.a .* (x .- μ) ./ (σ .+ l.ϵ) .+ l.b                                                         
+    σ = var(x,mean=μ,dims=1, corrected=false)
+    # torch implementation takes sqrt after adding eps
+    l.a .* (x .- μ) ./ sqrt.(σ .+ l.ϵ) .+ l.b                                                         
 end
 
 function softmax(w; dims)

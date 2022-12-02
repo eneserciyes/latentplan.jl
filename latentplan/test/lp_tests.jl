@@ -85,5 +85,6 @@ block_test_gt = numpy.load("files/block_output_gt.npy");
     println(block_out[1,:,1])
     println(permutedims(block_test_gt, (3, 2, 1))[1,:,1])
     @test all(abs.(block_out .- permutedims(block_test_gt, (3, 2, 1))).<eps)
-
 end;
+
+
