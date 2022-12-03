@@ -45,8 +45,8 @@ embed.w = Param(weights["model.embed.weight"][:cpu]()[:numpy]())
 embed.b = Param(weights["model.embed.bias"][:cpu]()[:numpy]())
 
 # Reading input/output tensor
-embed_test_input = numpy.load("files/joined_inputs_embed.npy")
-embed_test_gt = numpy.load("files/token_embeddings_gt.npy");
+embed_test_input = numpy.load("files/joined_inputs.npy")
+embed_test_gt = numpy.load("files/token_embeddings.npy");
 
 @testset "Testing Embed Linear" begin
     embed_out = embed(permutedims(embed_test_input, (3, 2, 1)))
@@ -90,9 +90,9 @@ end;
 ### Straigh Through test ### 
 
 # Reading input/output tensor
-st_input = numpy.load("files/st_input.npy")
-latents_st_gt = numpy.load("files/latents_st_gt.npy");
-latents_gt = numpy.load("files/latents_gt.npy");
+st_input = numpy.load("files/trajectory_feature.npy")
+latents_st_gt = numpy.load("files/latents_st.npy");
+latents_gt = numpy.load("files/latents.npy");
 
 codebook = VQEmbeddingMovingAverage(config["trajectory_embd"], config["K"])
 codebook.embedding = Param(weights["model.codebook.embedding"][:cpu]()[:numpy]()') .* 100
@@ -138,8 +138,8 @@ model.cast_embed.w = Param(weights["model.cast_embed.weight"][:cpu]()[:numpy]())
 model.cast_embed.b = Param(weights["model.cast_embed.bias"][:cpu]()[:numpy]())
 
 # Reading input/output tensor
-encoder_input = numpy.load("files/joined_inputs_embed.npy")
-encoder_test_gt = numpy.load("files/st_input.npy")
+encoder_input = numpy.load("files/joined_inputs.npy")
+encoder_test_gt = numpy.load("files/trajectory_feature.npy")
 
 @testset "Testing Encoder" begin
     encoder_out = encode(model, permutedims(encoder_input, (3, 2, 1)))
@@ -179,12 +179,37 @@ model.predict.w = Param(weights["model.predict.weight"][:cpu]()[:numpy]())
 model.predict.b = Param(weights["model.predict.bias"][:cpu]()[:numpy]())
 
 # Reading input/output tensor
-decoder_state_input = numpy.load("files/decoder_state_input.npy")
-latents_st_input = numpy.load("files/latents_st_gt.npy");
-joined_pred_decoder_gt = numpy.load("files/joined_pred_decoder_gt.npy")
+decoder_state_input = numpy.load("files/state.npy")
+latents_st_input = numpy.load("files/latents_st.npy");
+joined_pred_decoder_gt = numpy.load("files/joined_pred.npy")
 
 @testset "Testing Decoder" begin
     decoder_out = decode(model, permutedims(latents_st_input, (3,2,1)), decoder_state_input')
     eps = 5e-6
     @test all(abs.(decoder_out .- permutedims(joined_pred_decoder_gt, (3, 2, 1))).<eps)
+end;
+
+### VQStepWiseTransformer full test ###
+
+model.codebook.embedding = Param(atype(weights["model.codebook.embedding"][:cpu]()[:numpy]()')) .* 100
+model.codebook.ema_count = Param(weights["model.codebook.ema_count"][:cpu]()[:numpy]())
+model.codebook.ema_w = Param(atype(weights["model.codebook.ema_w"][:cpu]()[:numpy]()')) .* 100
+
+# Reading input/output tensor
+joined_inputs_input = numpy.load("files/joined_inputs.npy")
+state_input = numpy.load("files/state.npy")
+joined_pred_gt = numpy.load("files/joined_pred.npy")
+latents_gt = numpy.load("files/latents.npy");
+trajectory_feature_gt = numpy.load("files/trajectory_feature.npy")
+
+@testset "Testing VQStepWiseTransformer" begin
+    joined_pred, latents, trajectory_feature = model(permutedims(joined_inputs_input, (3, 2, 1)), state_input')
+    eps = 5e-6
+    println(joined_pred[1,:,1])
+    println(permutedims(joined_pred_gt, (3, 2, 1))[1,:,1])
+    println(latents[1,:,1])
+    println(permutedims(latents_gt, (3, 2, 1))[1,:,1])
+    @test all(abs.(joined_pred .- permutedims(joined_pred_gt, (3, 2, 1))).<eps)
+    @test all(abs.(latents .- permutedims(latents_gt, (3, 2, 1))).<eps)
+    @test all(abs.(trajectory_feature .- permutedims(trajectory_feature_gt, (3, 2, 1))).<eps)
 end;
