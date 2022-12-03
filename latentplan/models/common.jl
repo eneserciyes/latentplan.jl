@@ -2,6 +2,7 @@ export Chain, Linear, ReLU, GELU, Dropout, Embedding, one_hot, LayerNorm, softma
 
 using Statistics: mean, var, std
 using Knet.Ops21: gelu
+using AutoGrad: @primitive
 # include("gelu.jl")
 
 struct Chain
@@ -63,6 +64,8 @@ function one_hot(Type, indices, class_num)
     end
     onehot
 end
+
+@primitive one_hot(Type, indices, class_num),dy,y nothing nothing nothing
 
 mutable struct LayerNorm; a; b; ϵ; end
 paramlist(l::LayerNorm) = [l.a, l.b]

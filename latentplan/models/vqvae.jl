@@ -95,7 +95,7 @@ function straight_through(v::VQEmbeddingMovingAverage, z_e_x, train::Bool=true)
     z_q_x, indices = vq_st(z_e_x, v.embedding)
     
     if train
-        encodings = atype(one_hot(Float32, indices, K))
+        encodings = one_hot(Float32, indices, K)
         v.ema_count = v.decay .* v.ema_count + (1 - v.decay) .* sum(encodings, dims=2)[:, 1]
         dw = reshape(z_e_x, (D, :)) * transpose(encodings) 
         v.ema_w = v.decay .* v.ema_w + (1 - v.decay) .* dw
@@ -362,7 +362,6 @@ end
 
 
 function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, terminals=nothing)
-    @bp
     joined_dimension, t, b = size(joined_inputs)
     padded = repeat(v.padding_vector, 1, t, b)
 

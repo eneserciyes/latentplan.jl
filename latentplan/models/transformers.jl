@@ -1,7 +1,7 @@
 export CausalSelfAttention, Block, paramlist, paramlist_decay, paramlist_no_decay
 
 using LinearAlgebra: UpperTriangular
-
+using Debugger: @bp
 struct CausalSelfAttention; 
     key::Linear; query::Linear; value::Linear; 
     proj::Linear; mask;
@@ -35,7 +35,9 @@ function (c::CausalSelfAttention)(x)
     
     # (T, hs, nh, B) x (hs, T, nh, B) -> (T, T, nh, B)
     att = bmm(permutedims(k, (2,1,3,4)), q) .* Float32(1 / sqrt(size(k, 1)))
-    att[c.mask[1:T,1:T] .== 0, :, :] .= -Inf
+    @bp
+    # att[c.mask[1:T,1:T] .== 0, :, :] .+= -Inf
+    att = att .+ repeat((c.mask[1:T,1:T] .== 0) * Float32(-Inf), 1,1,4,48)
     att = softmax(att, dims=1)
     att_drop = dropout(att, c.attn_drop)
     # (hs, T, nh, B) x (T, T, nh, B)  -> (hs, T, nh, B)
