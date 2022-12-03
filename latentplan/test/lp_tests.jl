@@ -37,7 +37,7 @@ config["transition_dim"] = 26
 config["n_embd"] = args["n_embd"] * args["n_head"]
 config["vocab_size"] = args["N"]
 
-# model = VQContinuousVAE(config).model
+model = VQContinuousVAE(config).model
 
 ### embed / Linear test ###
 embed = Linear(config["transition_dim"], config["n_embd"])
@@ -106,3 +106,43 @@ codebook.ema_w = Param(weights["model.codebook.ema_w"][:cpu]()[:numpy]()') .* 10
     @test all(abs.(latents .- permutedims(latents_gt, (3, 2, 1))).<eps)
 end;
 
+### Encoder full test ###
+
+model.embed.w = Param(weights["model.embed.weight"][:cpu]()[:numpy]())
+model.embed.b = Param(weights["model.embed.bias"][:cpu]()[:numpy]())
+
+model.pos_emb = Param(permutedims(weights["model.pos_emb"][:cpu]()[:numpy](), (3,2,1)))
+
+for i in 1:config["n_layer"]
+    model.encoder.layers[i].ln1.a = Param(weights["model.encoder.$(i-1).ln1.weight"][:cpu]()[:numpy]())
+    model.encoder.layers[i].ln1.b = Param(weights["model.encoder.$(i-1).ln1.bias"][:cpu]()[:numpy]())
+    model.encoder.layers[i].ln2.a = Param(weights["model.encoder.$(i-1).ln2.weight"][:cpu]()[:numpy]())
+    model.encoder.layers[i].ln2.b = Param(weights["model.encoder.$(i-1).ln2.bias"][:cpu]()[:numpy]())
+
+    model.encoder.layers[i].attn.key.w = Param(weights["model.encoder.$(i-1).attn.key.weight"][:cpu]()[:numpy]())
+    model.encoder.layers[i].attn.key.b = Param(weights["model.encoder.$(i-1).attn.key.bias"][:cpu]()[:numpy]())
+    model.encoder.layers[i].attn.query.w = Param(weights["model.encoder.$(i-1).attn.query.weight"][:cpu]()[:numpy]())
+    model.encoder.layers[i].attn.query.b = Param(weights["model.encoder.$(i-1).attn.query.bias"][:cpu]()[:numpy]())
+    model.encoder.layers[i].attn.value.w = Param(weights["model.encoder.$(i-1).attn.value.weight"][:cpu]()[:numpy]())
+    model.encoder.layers[i].attn.value.b = Param(weights["model.encoder.$(i-1).attn.value.bias"][:cpu]()[:numpy]())
+    model.encoder.layers[i].attn.proj.w = Param(weights["model.encoder.$(i-1).attn.proj.weight"][:cpu]()[:numpy]())
+    model.encoder.layers[i].attn.proj.b = Param(weights["model.encoder.$(i-1).attn.proj.bias"][:cpu]()[:numpy]())
+
+    model.encoder.layers[i].mlp.layers[1].w = Param(weights["model.encoder.$(i-1).mlp.0.weight"][:cpu]()[:numpy]())
+    model.encoder.layers[i].mlp.layers[1].b = Param(weights["model.encoder.$(i-1).mlp.0.bias"][:cpu]()[:numpy]())
+    model.encoder.layers[i].mlp.layers[3].w = Param(weights["model.encoder.$(i-1).mlp.2.weight"][:cpu]()[:numpy]())
+    model.encoder.layers[i].mlp.layers[3].b = Param(weights["model.encoder.$(i-1).mlp.2.bias"][:cpu]()[:numpy]())
+end
+
+model.cast_embed.w = Param(weights["model.cast_embed.weight"][:cpu]()[:numpy]())
+model.cast_embed.b = Param(weights["model.cast_embed.bias"][:cpu]()[:numpy]())
+
+# Reading input/output tensor
+encoder_input = numpy.load("files/joined_inputs_embed.npy")
+encoder_test_gt = numpy.load("files/st_input.npy")
+
+@testset "Testing Encoder" begin
+    encoder_out = encode(model, permutedims(encoder_input, (3, 2, 1)))
+    eps = 5e-6
+    @test all(abs.(encoder_out .- permutedims(encoder_test_gt, (3, 2, 1))).<eps)
+end;

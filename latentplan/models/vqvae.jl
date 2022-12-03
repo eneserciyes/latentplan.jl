@@ -112,7 +112,7 @@ end
 #########################
 # VQStepWiseTransformer
 
-struct VQStepWiseTransformer
+mutable struct VQStepWiseTransformer
     K
     latent_size
     condition_size
