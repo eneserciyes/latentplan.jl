@@ -146,3 +146,45 @@ encoder_test_gt = numpy.load("files/st_input.npy")
     eps = 5e-6
     @test all(abs.(encoder_out .- permutedims(encoder_test_gt, (3, 2, 1))).<eps)
 end;
+
+### Decoder full test ###
+model.latent_mixing.w = Param(weights["model.latent_mixing.weight"][:cpu]()[:numpy]())
+model.latent_mixing.b = Param(weights["model.latent_mixing.bias"][:cpu]()[:numpy]())
+
+for i in 1:config["n_layer"]
+    model.decoder.layers[i].ln1.a = Param(weights["model.decoder.$(i-1).ln1.weight"][:cpu]()[:numpy]())
+    model.decoder.layers[i].ln1.b = Param(weights["model.decoder.$(i-1).ln1.bias"][:cpu]()[:numpy]())
+    model.decoder.layers[i].ln2.a = Param(weights["model.decoder.$(i-1).ln2.weight"][:cpu]()[:numpy]())
+    model.decoder.layers[i].ln2.b = Param(weights["model.decoder.$(i-1).ln2.bias"][:cpu]()[:numpy]())
+
+    model.decoder.layers[i].attn.key.w = Param(weights["model.decoder.$(i-1).attn.key.weight"][:cpu]()[:numpy]())
+    model.decoder.layers[i].attn.key.b = Param(weights["model.decoder.$(i-1).attn.key.bias"][:cpu]()[:numpy]())
+    model.decoder.layers[i].attn.query.w = Param(weights["model.decoder.$(i-1).attn.query.weight"][:cpu]()[:numpy]())
+    model.decoder.layers[i].attn.query.b = Param(weights["model.decoder.$(i-1).attn.query.bias"][:cpu]()[:numpy]())
+    model.decoder.layers[i].attn.value.w = Param(weights["model.decoder.$(i-1).attn.value.weight"][:cpu]()[:numpy]())
+    model.decoder.layers[i].attn.value.b = Param(weights["model.decoder.$(i-1).attn.value.bias"][:cpu]()[:numpy]())
+    model.decoder.layers[i].attn.proj.w = Param(weights["model.decoder.$(i-1).attn.proj.weight"][:cpu]()[:numpy]())
+    model.decoder.layers[i].attn.proj.b = Param(weights["model.decoder.$(i-1).attn.proj.bias"][:cpu]()[:numpy]())
+
+    model.decoder.layers[i].mlp.layers[1].w = Param(weights["model.decoder.$(i-1).mlp.0.weight"][:cpu]()[:numpy]())
+    model.decoder.layers[i].mlp.layers[1].b = Param(weights["model.decoder.$(i-1).mlp.0.bias"][:cpu]()[:numpy]())
+    model.decoder.layers[i].mlp.layers[3].w = Param(weights["model.decoder.$(i-1).mlp.2.weight"][:cpu]()[:numpy]())
+    model.decoder.layers[i].mlp.layers[3].b = Param(weights["model.decoder.$(i-1).mlp.2.bias"][:cpu]()[:numpy]())
+end
+
+model.ln_f.a = Param(weights["model.ln_f.weight"][:cpu]()[:numpy]())
+model.ln_f.b = Param(weights["model.ln_f.bias"][:cpu]()[:numpy]())
+
+model.predict.w = Param(weights["model.predict.weight"][:cpu]()[:numpy]())
+model.predict.b = Param(weights["model.predict.bias"][:cpu]()[:numpy]())
+
+# Reading input/output tensor
+decoder_state_input = numpy.load("files/decoder_state_input.npy")
+latents_st_input = numpy.load("files/latents_st_gt.npy");
+joined_pred_decoder_gt = numpy.load("files/joined_pred_decoder_gt.npy")
+
+@testset "Testing Decoder" begin
+    decoder_out = decode(model, permutedims(latents_st_input, (3,2,1)), decoder_state_input')
+    eps = 5e-6
+    @test all(abs.(decoder_out .- permutedims(joined_pred_decoder_gt, (3, 2, 1))).<eps)
+end;
