@@ -1,6 +1,7 @@
 using Test
 using PyCall
 using Knet
+using Debugger: @enter, @bp, @run
 
 atype=Array{Float32}
 
@@ -54,6 +55,7 @@ embed_test_gt = numpy.load("files/token_embeddings_gt.npy");
     @test all(abs.(embed_out .- permutedims(embed_test_gt, (3, 2, 1))).<eps)
 
 end;
+
 ### Block test ###
 block = Block(config)
 block.ln1.a = Param(weights["model.encoder.0.ln1.weight"][:cpu]()[:numpy]())
@@ -82,9 +84,25 @@ block_test_gt = numpy.load("files/block_output_gt.npy");
 @testset "Testing Block" begin
     block_out = block(permutedims(block_test_input, (3, 2, 1)))
     eps = 5e-6
-    println(block_out[1,:,1])
-    println(permutedims(block_test_gt, (3, 2, 1))[1,:,1])
     @test all(abs.(block_out .- permutedims(block_test_gt, (3, 2, 1))).<eps)
 end;
 
+### Straigh Through test ### 
+
+# Reading input/output tensor
+st_input = numpy.load("files/st_input.npy")
+latents_st_gt = numpy.load("files/latents_st_gt.npy");
+latents_gt = numpy.load("files/latents_gt.npy");
+
+codebook = VQEmbeddingMovingAverage(config["trajectory_embd"], config["K"])
+codebook.embedding = Param(weights["model.codebook.embedding"][:cpu]()[:numpy]()') .* 100
+codebook.ema_count = Param(weights["model.codebook.ema_count"][:cpu]()[:numpy]())
+codebook.ema_w = Param(weights["model.codebook.ema_w"][:cpu]()[:numpy]()') .* 100
+
+@testset "Testing Straight Through Forward" begin
+    latents_st, latents = straight_through(codebook, permutedims(st_input, (3, 2, 1)))
+    eps = 5e-6
+    @test all(abs.(latents_st .- permutedims(latents_st_gt, (3, 2, 1))).<eps)
+    @test all(abs.(latents .- permutedims(latents_gt, (3, 2, 1))).<eps)
+end;
 

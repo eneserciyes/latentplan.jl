@@ -7,11 +7,12 @@ using Debugger: @bp
 
 # VectorQuantization
 function vq(inputs::atype, codebook::atype)
+    @bp
     embedding_size = size(codebook,1)
     inputs_size = size(inputs)
     inputs_flatten = reshape(inputs, (embedding_size, :))
     
-    codebook_sqr = transpose(sum(codebook .^ 2, dims=1))
+    codebook_sqr = dropdims(sum(codebook .^ 2, dims=1), dims=1)
     inputs_sqr = sum(inputs_flatten .^ 2, dims=1)
     distances = (codebook_sqr .+ inputs_sqr) + -2 * (transpose(codebook) * inputs_flatten)
     indices_cartesian = argmin(distances, dims=1)
