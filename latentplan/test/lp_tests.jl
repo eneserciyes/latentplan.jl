@@ -91,19 +91,23 @@ end;
 
 # Reading input/output tensor
 st_input = numpy.load("files/trajectory_feature.npy")
-latents_st_gt = numpy.load("files/latents_st.npy");
-latents_gt = numpy.load("files/latents.npy");
+latents_st_gt = numpy.load("files/latents_st_orig.npy");
+latents_gt = numpy.load("files/latents_orig.npy");
+ema_w_one_update_gt = numpy.load("files/ema_w_one_update.npy");
+ema_count_one_update_gt = numpy.load("files/ema_count_one_update.npy");
 
 codebook = VQEmbeddingMovingAverage(config["trajectory_embd"], config["K"])
-codebook.embedding = Param(weights["model.codebook.embedding"][:cpu]()[:numpy]()') .* 100
+codebook.embedding = Param(atype(weights["model.codebook.embedding"][:cpu]()[:numpy]()'))
 codebook.ema_count = Param(weights["model.codebook.ema_count"][:cpu]()[:numpy]())
-codebook.ema_w = Param(weights["model.codebook.ema_w"][:cpu]()[:numpy]()') .* 100
+codebook.ema_w = Param(atype(weights["model.codebook.ema_w"][:cpu]()[:numpy]()'))
 
 @testset "Testing Straight Through Forward" begin
     latents_st, latents = straight_through(codebook, permutedims(st_input, (3, 2, 1)))
     eps = 5e-6
     @test all(abs.(latents_st .- permutedims(latents_st_gt, (3, 2, 1))).<eps)
     @test all(abs.(latents .- permutedims(latents_gt, (3, 2, 1))).<eps)
+    @test all(abs.(codebook.ema_count .- ema_count_one_update_gt).<eps)
+    @test all(abs.(codebook.ema_w .- ema_w_one_update_gt').<eps)
 end;
 
 ### Encoder full test ###
@@ -180,8 +184,8 @@ vq_model.model.predict.b = Param(weights["model.predict.bias"][:cpu]()[:numpy]()
 
 # Reading input/output tensor
 decoder_state_input = numpy.load("files/state.npy")
-latents_st_input = numpy.load("files/latents_st.npy");
-joined_pred_decoder_gt = numpy.load("files/joined_pred.npy")
+latents_st_input = numpy.load("files/latents_st_orig.npy");
+joined_pred_decoder_gt = numpy.load("files/joined_pred.npy");
 
 @testset "Testing Decoder" begin
     decoder_out = decode(vq_model.model, permutedims(latents_st_input, (3,2,1)), decoder_state_input')
@@ -191,17 +195,16 @@ end;
 
 ### VQStepWiseTransformer full test ###
 
-vq_model.model.codebook.embedding = Param(atype(weights["model.codebook.embedding"][:cpu]()[:numpy]()')) .* 100
+vq_model.model.codebook.embedding = Param(atype(weights["model.codebook.embedding"][:cpu]()[:numpy]()'))
 vq_model.model.codebook.ema_count = Param(weights["model.codebook.ema_count"][:cpu]()[:numpy]())
-vq_model.model.codebook.ema_w = Param(atype(weights["model.codebook.ema_w"][:cpu]()[:numpy]()')) .* 100
+vq_model.model.codebook.ema_w = Param(atype(weights["model.codebook.ema_w"][:cpu]()[:numpy]()'))
 
 # Reading input/output tensor
 joined_inputs_input = numpy.load("files/joined_inputs.npy")
 state_input = numpy.load("files/state.npy")
 joined_pred_gt = numpy.load("files/joined_pred.npy")
-latents_gt = numpy.load("files/latents.npy");
+latents_gt = numpy.load("files/latents_orig.npy");
 trajectory_feature_gt = numpy.load("files/trajectory_feature.npy")
-padding_vector = numpy.load("files/padding_vector.npy")
 
 @testset "Testing VQStepWiseTransformer" begin
     joined_pred, latents, trajectory_feature = vq_model.model(permutedims(joined_inputs_input, (3, 2, 1)), state_input')
@@ -213,7 +216,11 @@ end;
 
 
 ### VQContinuousVAE full test ###
+padding_vector = numpy.load("files/padding_vector.npy")
 
+vq_model.model.codebook.embedding = Param(atype(weights["model.codebook.embedding"][:cpu]()[:numpy]()'))
+vq_model.model.codebook.ema_count = Param(weights["model.codebook.ema_count"][:cpu]()[:numpy]())
+vq_model.model.codebook.ema_w = Param(atype(weights["model.codebook.ema_w"][:cpu]()[:numpy]()'))
 vq_model.padding_vector = Array{Float32}(padding_vector)
 
 # Reading input/output tensor
@@ -234,7 +241,6 @@ loss_commit_gt = numpy.load("files/loss_commit.npy")
         permutedims(terminals_input, (3,2,1))
     )
     eps = 5e-6
-    println("")
     @test all(abs.(reconstructed .- permutedims(reconstructed_gt, (3, 2, 1))).<eps)
     @test all(abs.(reconstruction_loss .- reconstruction_loss_gt).<eps)
     @test loss_vq == loss_vq_gt

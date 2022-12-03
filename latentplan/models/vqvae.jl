@@ -7,7 +7,6 @@ using Debugger: @bp
 
 # VectorQuantization
 function vq(inputs::atype, codebook::atype)
-    @bp
     embedding_size = size(codebook,1)
     inputs_size = size(inputs)
     inputs_flatten = reshape(inputs, (embedding_size, :))
@@ -363,11 +362,12 @@ end
 
 
 function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, terminals=nothing)
+    @bp
     joined_dimension, t, b = size(joined_inputs)
     padded = repeat(v.padding_vector, 1, t, b)
 
     if !(terminals === nothing)
-        terminal_mask = repeat(deepcopy(.~terminals), size(joined_inputs, 1), 1, 1)
+        terminal_mask = repeat(deepcopy(1 .- terminals), size(joined_inputs, 1), 1, 1)
         joined_inputs = joined_inputs .* terminal_mask .+ padded .* (1 .- terminal_mask)
     end
     state = joined_inputs[1:v.observation_dim, 1, :]
@@ -377,7 +377,6 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
     reconstructed, latents, feature = v.model(cat(joined_inputs, terminals, dims=1), state)
     pred_trajectory = reshape(reconstructed[1:end-1, :, :], (joined_dimension, t, b))
     pred_terminals = reshape(reconstructed[end, :, :], 1,size(reconstructed)[2:end]...)
-    @bp
     if !(targets === nothing)
         # compute the loss
         weights = cat(
