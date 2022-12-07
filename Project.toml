@@ -1,6 +1,7 @@
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 AutoGrad = "6710c13c-97f1-543f-91c5-74e8f7d95b35"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Conda = "8f4d0f93-b110-5947-807f-2305c1781a2d"
 Configurations = "5218b696-f38b-4ac9-8b61-a12ec717816d"

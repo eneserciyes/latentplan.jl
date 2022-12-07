@@ -158,6 +158,10 @@ traj_feat_grad_gt = permutedims(numpy.load("files/trajectory_feature_straight_th
     @test all(abs.(traj_feat_grad .- traj_feat_grad_gt).<eps)
 end
 
+
+# repeat gradient check
+
+
 # Testing gradients
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
 total_loss = @diff losssum(vq_model(

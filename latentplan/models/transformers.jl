@@ -37,7 +37,7 @@ function (c::CausalSelfAttention)(x)
     att = bmm(permutedims(k, (2,1,3,4)), q) .* Float32(1 / sqrt(size(k, 1)))
     @bp
     # att[c.mask[1:T,1:T] .== 0, :, :] .+= -Inf
-    att = att .+ repeat((c.mask[1:T,1:T] .== 0) * Float32(-Inf), 1,1,4,48)
+    att = att .+ repeat_broadcast((c.mask[1:T,1:T] .== 0) * Float32(-Inf), 1,1,4,48)
     att = softmax(att, dims=1)
     att_drop = dropout(att, c.attn_drop)
     # (hs, T, nh, B) x (T, T, nh, B)  -> (hs, T, nh, B)

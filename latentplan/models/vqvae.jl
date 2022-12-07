@@ -250,13 +250,13 @@ end
 
 function decode(v::VQStepWiseTransformer, latents, state)
     _, T, B = size(latents)
-    state_flat = repeat(reshape(state, (:, 1, B)), 1, T, 1)
+    state_flat = repeat_broadcast(reshape(state, (:, 1, B)), 1, T, 1)
     if !v.state_conditional
         state_flat = zeros(size(state_flat))
     end
     inputs = cat(state_flat, latents, dims=1)
     inputs = v.latent_mixing(inputs)
-    inputs = repeat(inputs, inner=(1, v.latent_step, 1))
+    inputs = repeat_interleave(inputs, 1, v.latent_step, 1)
 
     inputs = inputs .+ v.pos_emb[:, 1:size(inputs, 2), :]
     x = v.decoder(inputs)
@@ -264,8 +264,14 @@ function decode(v::VQStepWiseTransformer, latents, state)
 
     ## [obs_dim x T x B]
     joined_pred = v.predict(x)
-    joined_pred[end, :, :] = sigm.(joined_pred[end, :, :])
-    joined_pred[1:v.observation_dim, :, :] .+= reshape(state, (:, 1, B))
+    
+    sigm_mask = atype(ones(size(joined_pred)))
+    sigm_mask[end, :, :] .= 0.0f0
+    joined_pred = joined_pred .* sigm_mask .+ (1 .- sigm_mask) .* sigm.(joined_pred)
+    
+    state_mask = atype(zeros(size(joined_pred)))
+    state_mask[1:v.observation_dim, :, :] .+= reshape(state, (:, 1, B))
+    joined_pred += state_mask
 
     return joined_pred
 end
@@ -341,8 +347,8 @@ paramlist_no_decay(v::VQContinuousVAE) = paramlist_no_decay(v.model)
 
 function encode(v::VQContinuousVAE, joined_inputs, terminals)
     _, t, b = size(joined_inputs)
-    padded = repeat(v.padding_vector, (1, t, b))
-    terminal_mask = repeat(deepcopy(1 .- terminals), (size(joined_inputs, 1), 1, 1))
+    padded = repeat_broadcast(v.padding_vector, 1, t, b)
+    terminal_mask = repeat_broadcast(deepcopy(1 .- terminals), size(joined_inputs, 1), 1, 1)
     joined_inputs = joined_inputs .* terminal_mask .+ padded .* (1 .- terminal_mask)
 
     trajectory_feature = encode(v.model, cat((joined_inputs, terminals), dims=1)) # TODO: check dims here
@@ -363,10 +369,10 @@ end
 
 function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, terminals=nothing)
     joined_dimension, t, b = size(joined_inputs)
-    padded = repeat(v.padding_vector, 1, t, b)
+    padded = repeat_broadcast(v.padding_vector, 1, t, b)
 
     if !(terminals === nothing)
-        terminal_mask = repeat(deepcopy(1 .- terminals), size(joined_inputs, 1), 1, 1)
+        terminal_mask = repeat_broadcast(deepcopy(1 .- terminals), size(joined_inputs, 1), 1, 1)
         joined_inputs = joined_inputs .* terminal_mask .+ padded .* (1 .- terminal_mask)
     end
     state = joined_inputs[1:v.observation_dim, 1, :]
