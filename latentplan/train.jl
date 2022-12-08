@@ -61,8 +61,7 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
             end
 
             # forward the model
-            # total_loss = @diff losssum(model(batch...))
-            total_loss = losssum(model(batch...))
+            total_loss = @diff losssum(model(batch...))
             push!(losses, value(total_loss))
             for p in paramlist(model)
                 update!(p, grad(total_loss, p))
