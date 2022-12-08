@@ -167,3 +167,5 @@ total_loss = @diff losssum(vq_model(
 ))
 
 println("Gradient check..")
+
+
