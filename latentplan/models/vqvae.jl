@@ -19,6 +19,7 @@ function vq(inputs::atype, codebook::atype)
     indices = reshape(indices_flatten, inputs_size[2:end])
     return indices
 end
+@zerograd vq(inputs::atype, codebook::atype)
 
 # VectorQuantizationStraightThrough
 function vq_st(inputs::atype, codebook::atype)
@@ -281,9 +282,8 @@ end
 function (v::VQStepWiseTransformer)(joined_inputs, state)
     trajectory_feature = encode(v,joined_inputs)
     latents_st, latents = straight_through(v.codebook, trajectory_feature)
-    # no bottleneck attention here
+    # # no bottleneck attention here
     joined_pred = decode(v, latents_st, state)
-
     return joined_pred, latents, trajectory_feature
 end
 
@@ -382,16 +382,17 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
 
     # forward the GPT model
     reconstructed, latents, feature = v.model(cat(joined_inputs, terminals, dims=1), state)
+
     pred_trajectory = reshape(reconstructed[1:end-1, :, :], (joined_dimension, t, b))
     pred_terminals = reshape(reconstructed[end, :, :], 1,size(reconstructed)[2:end]...)
     if !(targets === nothing)
         # compute the loss
         weights = cat(
-            ones(2) .* v.position_weight,
-            ones(v.observation_dim - 2),
-            ones(v.action_dim) .* v.action_weight,
-            ones(1) .* v.reward_weight,
-            ones(1) .* v.value_weight,
+            atype(ones(2)) .* v.position_weight,
+            atype(ones(v.observation_dim - 2)),
+            atype(ones(v.action_dim)) .* v.action_weight,
+            atype(ones(1)) .* v.reward_weight,
+            atype(ones(1)) .* v.value_weight,
             dims=1
         )
 
@@ -413,11 +414,11 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
         reconstruction_loss = reconstruction_loss + first_action_loss + sum_reward_loss + last_value_loss
 
         if v.model.ma_update
-            loss_vq = 0
+            loss_vq = 0.0f0
         else
-            loss_vq = mse_loss(latents, value(feature)) #TODO: check value is needed here for detach
+            loss_vq = mse_loss_detached(latents, feature)
         end
-        loss_commit = mse_loss(feature, value(latents)) #TODO: check value is needed here for detach
+        loss_commit = mse_loss_detached(feature, latents)
     else
         reconstruction_loss = nothing
         loss_vq = nothing

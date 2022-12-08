@@ -102,6 +102,12 @@ function mse_loss(x, y; reduction="mean")
     end
 end
 
+function mse_loss_detached(x, y; reduction="mean")
+    return mse_loss(x, y; reduction=reduction)
+end
+
+@primitive mse_loss_detached(x, y; reduction="mean"),dy begin grad = dy .* 2.0f0 .* (x.-y); if reduction=="mean" grad ./ size(x,1) else grad end end nothing nothing
+
 function binary_cross_entropy(probs,labels; reduction="mean")
     loss = -(labels .* log.(probs) .+ (1 .- labels) .* log.(1 .- probs))
     if reduction == "mean"
