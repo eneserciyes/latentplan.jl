@@ -31,7 +31,7 @@ struct ReLU; end
 (r::ReLU)(x) = relu.(x)
 
 struct GELU; end
-(g::GELU)(x) = gelu.(x)
+(g::GELU)(x) = gelu(x)
 
 struct Dropout 
     pdrop

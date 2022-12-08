@@ -40,7 +40,7 @@ function vq_st_codebook_backprop(codebook, output, grad_output)
 end
 
 # gradient definition for straight through estimation
-@primitive vq_st(inputs, codebook),dy,y dy[1] vq_st_codebook_backprop(codebook, y, dy)  
+@primitive vq_st(inputs, codebook),dy,y dy[1] vq_st_codebook_backprop(codebook, y, dy)
 
 #########################
 # VQEmbedding
@@ -252,13 +252,14 @@ function decode(v::VQStepWiseTransformer, latents, state)
     _, T, B = size(latents)
     state_flat = repeat_broadcast(reshape(state, (:, 1, B)), 1, T, 1)
     if !v.state_conditional
-        state_flat = zeros(size(state_flat))
+        state_flat = zeros(Float32, size(state_flat))
     end
     inputs = cat(state_flat, latents, dims=1)
     inputs = v.latent_mixing(inputs)
     inputs = repeat_interleave(inputs, 1, v.latent_step, 1)
 
     inputs = inputs .+ v.pos_emb[:, 1:size(inputs, 2), :]
+
     x = v.decoder(inputs)
     x = v.ln_f(x)
 
@@ -272,7 +273,7 @@ function decode(v::VQStepWiseTransformer, latents, state)
     state_mask = atype(zeros(size(joined_pred)))
     state_mask[1:v.observation_dim, :, :] .+= reshape(state, (:, 1, B))
     joined_pred += state_mask
-
+    
     return joined_pred
 end
 
@@ -282,6 +283,7 @@ function (v::VQStepWiseTransformer)(joined_inputs, state)
     latents_st, latents = straight_through(v.codebook, trajectory_feature)
     # no bottleneck attention here
     joined_pred = decode(v, latents_st, state)
+
     return joined_pred, latents, trajectory_feature
 end
 
@@ -413,9 +415,9 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
         if v.model.ma_update
             loss_vq = 0
         else
-            loss_vq = mse_loss(latents, feature) #TODO: check value is needed here for detach
+            loss_vq = mse_loss(latents, value(feature)) #TODO: check value is needed here for detach
         end
-        loss_commit = mse_loss(feature, latents) #TODO: check value is needed here for detach
+        loss_commit = mse_loss(feature, value(latents)) #TODO: check value is needed here for detach
     else
         reconstruction_loss = nothing
         loss_vq = nothing
