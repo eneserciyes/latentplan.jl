@@ -21,7 +21,7 @@ paramlist_no_decay(c::Any) = []
 
 mutable struct Linear; w; b; pdrop; bias; end
 Linear(in_dim, out_dim; pdrop=0, init=(a...)->gaussian(a...;mean=0,std=0.02), bias=true) = Linear(param(out_dim,in_dim, init=init), param0(out_dim), pdrop, bias)
-(l::Linear)(x) = reshape(l.w * reshape(dropout(x, l.pdrop), size(x)[1], :), size(l.w)[1], size(x)[2:end]...) .+ (l.bias ? l.b : 0) #TODO: check if bias filtering correct
+(l::Linear)(x) = reshape(l.w * reshape(dropout(x, l.pdrop), size(x)[1], :), size(l.w)[1], size(x)[2:end]...) .+ (l.bias ? l.b : 0)
 
 paramlist(l::Linear) = Iterators.flatten([paramlist_decay(l), paramlist_no_decay(l)])
 paramlist_decay(l::Linear) = [l.w]
@@ -120,7 +120,6 @@ function binary_cross_entropy(probs,labels; reduction="mean")
 end
 
 
-# TODO: wrong implementation, check this again
 struct MaxPool1d
     window;
     stride;

@@ -190,9 +190,6 @@ mutable struct VQStepWiseTransformer
         if bottleneck == "pooling"
             latent_pooling = MaxPool1d(latent_step, latent_step)
             expand = nothing
-        # else if bottleneck == "attention"
-        #     latent_pooling = AsymBlock(config, trajectory_length ÷ latent_step)
-        #     expand = AsymBlock(config, trajectory_length)
         end
         ln_f = LayerNorm(config["n_embd"])
         drop = Dropout(config["embd_pdrop"])
@@ -353,7 +350,7 @@ function encode(v::VQContinuousVAE, joined_inputs, terminals)
     terminal_mask = repeat_broadcast(deepcopy(1 .- terminals), size(joined_inputs, 1), 1, 1)
     joined_inputs = joined_inputs .* terminal_mask .+ padded .* (1 .- terminal_mask)
 
-    trajectory_feature = encode(v.model, cat((joined_inputs, terminals), dims=1)) # TODO: check dims here
+    trajectory_feature = encode(v.model, cat((joined_inputs, terminals), dims=1))
     if v.model.ma_update
         indices = vq(trajectory_feature, v.model.codebook.embedding)
     else
