@@ -129,21 +129,20 @@ loss_commit_gt = numpy.load("files/loss_commit.npy")
 
 println("Setup done..")
 
-# # Check forward first
-# @testset "Testing VQContinuousVAE forward" begin
-#     reconstructed, reconstruction_loss, loss_vq, loss_commit = vq_model(
-#         permutedims(joined_inputs_input, (3, 2, 1)), 
-#         permutedims(targets_input, (3,2,1)), 
-#         permutedims(mask_input, (3,2,1)), 
-#         permutedims(terminals_input, (3,2,1))
-#     )
-#     eps = 5e-6
-#     @test all(abs.(reconstructed .- permutedims(reconstructed_gt, (3, 2, 1))).<eps)
-#     @test all(abs.(reconstruction_loss .- reconstruction_loss_gt).<eps)
-#     @test loss_vq == loss_vq_gt
-#     @test all(abs.(loss_commit .- loss_commit_gt).<eps)
-# end
-
+# Check forward first
+@testset "Testing VQContinuousVAE forward" begin
+    reconstructed, reconstruction_loss, loss_vq, loss_commit = vq_model(
+        permutedims(joined_inputs_input, (3, 2, 1)), 
+        permutedims(targets_input, (3,2,1)), 
+        permutedims(mask_input, (3,2,1)), 
+        permutedims(terminals_input, (3,2,1))
+    )
+    eps = 5e-6
+    @test all(abs.(reconstructed .- permutedims(reconstructed_gt, (3, 2, 1))).<eps)
+    @test all(abs.(reconstruction_loss .- reconstruction_loss_gt).<eps)
+    @test loss_vq == loss_vq_gt
+    @test all(abs.(loss_commit .- loss_commit_gt).<eps)
+end
 
 # Testing straight through gradient
 reset_codebook()
@@ -158,12 +157,8 @@ traj_feat_grad_gt = permutedims(numpy.load("files/trajectory_feature_straight_th
     @test all(abs.(traj_feat_grad .- traj_feat_grad_gt).<eps)
 end
 
-
-# repeat gradient check
-
-
 # Testing gradients
-losssum(prediction) = begin println(typeof(prediction[4])); return mean(prediction[2] + prediction[3] + prediction[4]) end
+losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
 total_loss = @diff losssum(vq_model(
     permutedims(joined_inputs_input, (3, 2, 1)), 
     permutedims(targets_input, (3,2,1)), 
