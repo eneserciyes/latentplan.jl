@@ -168,6 +168,20 @@ end
 #     eps = 5e-6
 #     @test all(abs.(traj_feat_grad .- traj_feat_grad_complex_gt).<eps)
 # end
+reset_codebook()
+@testset "Testing latent-mixing cat gradient" begin
+    latents = Param(permutedims(numpy.load("files/latents_st.npy"), (3,2,1)))
+    state = numpy.load("files/state.npy")'
+    latent_mixing_input_grad_gt = permutedims(numpy.load("files/grads/inputs_latent_mixing-grad.npy"), (3,2,1))
+
+    _, T, B = size(latents)
+    loss = @diff sum(vq_model.model.latent_mixing(cat(repeat_broadcast(reshape(state, (:, 1, B)), 1, T, 1), latents, dims=1)))
+    latents_grad = grad(loss, latents)
+
+    eps = 5e-6
+    @test value(loss) ≈ -23.2956
+    @test all(abs.(latents_grad .- latent_mixing_input_grad_gt).<eps)
+end
 
 reset_codebook()
 @testset "Testing decode gradient end-to-end" begin
