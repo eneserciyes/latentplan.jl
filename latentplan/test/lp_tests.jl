@@ -91,8 +91,8 @@ end;
 
 # Reading input/output tensor
 st_input = numpy.load("files/trajectory_feature.npy")
-latents_st_gt = numpy.load("files/latents_st_orig.npy");
-latents_gt = numpy.load("files/latents_orig.npy");
+latents_st_gt = numpy.load("files/latents_st.npy");
+latents_gt = numpy.load("files/latents.npy");
 ema_w_one_update_gt = numpy.load("files/ema_w_one_update.npy");
 ema_count_one_update_gt = numpy.load("files/ema_count_one_update.npy");
 
@@ -184,7 +184,7 @@ vq_model.model.predict.b = Param(weights["model.predict.bias"][:cpu]()[:numpy]()
 
 # Reading input/output tensor
 decoder_state_input = numpy.load("files/state.npy")
-latents_st_input = numpy.load("files/latents_st_orig.npy");
+latents_st_input = numpy.load("files/latents_st.npy");
 joined_pred_decoder_gt = numpy.load("files/joined_pred.npy");
 
 @testset "Testing Decoder" begin
@@ -203,7 +203,7 @@ vq_model.model.codebook.ema_w = Param(atype(weights["model.codebook.ema_w"][:cpu
 joined_inputs_input = numpy.load("files/joined_inputs.npy")
 state_input = numpy.load("files/state.npy")
 joined_pred_gt = numpy.load("files/joined_pred.npy")
-latents_gt = numpy.load("files/latents_orig.npy");
+latents_gt = numpy.load("files/latents.npy");
 trajectory_feature_gt = numpy.load("files/trajectory_feature.npy")
 
 @testset "Testing VQStepWiseTransformer" begin
