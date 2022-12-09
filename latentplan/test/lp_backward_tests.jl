@@ -148,7 +148,7 @@ end
 reset_codebook()
 
 trajectory_feature_input = Param(permutedims(numpy.load("files/trajectory_feature.npy"), (3,2,1)))
-traj_feat_grad_gt = permutedims(numpy.load("files/trajectory_feature_straight_through_grad.npy"), (3,2,1))
+traj_feat_grad_gt = permutedims(numpy.load("files/grads/trajectory_feature_straight_through_grad.npy"), (3,2,1))
 @testset "Testing straight through gradient" begin
     lossfunc = (x) -> 2 * x[1][1,1,1] ^ 2 + x[1][2,2,1] ^ 2 + x[1][3,3,1] ^ 2
     loss = @diff lossfunc(straight_through(vq_model.model.codebook, trajectory_feature_input))
@@ -157,6 +157,7 @@ traj_feat_grad_gt = permutedims(numpy.load("files/trajectory_feature_straight_th
     @test all(abs.(traj_feat_grad .- traj_feat_grad_gt).<eps)
 end
 
+reset_codebook()
 # Testing gradients
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
 total_loss = @diff losssum(vq_model(
@@ -167,5 +168,51 @@ total_loss = @diff losssum(vq_model(
 ))
 
 println("Gradient check..")
+
+# check last layer predict gradients
+
+@testset "Checking predict gradients" begin
+    ∇predict_w = grad(total_loss, vq_model.model.predict.w)
+    ∇predict_b = grad(total_loss, vq_model.model.predict.b)
+    ∇predict_w_gt = numpy.load("files/grads/predict-weight-grad.npy")
+    eps = 5e-6
+    @test all(abs.(∇predict_w .- ∇predict_w_gt).<eps)
+end;
+
+@testset "Checking ln_f gradients" begin
+    ∇ln_f_w = grad(total_loss, vq_model.model.ln_f.a)
+    ∇ln_f_b = grad(total_loss, vq_model.model.ln_f.b)
+    ∇ln_f_w_gt = numpy.load("files/grads/ln_f-weight-grad.npy")
+    eps = 5e-6
+    @test all(abs.(∇ln_f_w .- ∇ln_f_w_gt).<eps)
+end;
+
+@testset "Checking latent_mixing gradients" begin
+    ∇latent_mixing_w = grad(total_loss, vq_model.model.latent_mixing.w)
+    ∇latent_mixing_b = grad(total_loss, vq_model.model.latent_mixing.b)
+    ∇latent_mixing_w_gt = numpy.load("files/grads/latent_mixing-weight-grad.npy")
+    eps = 5e-6
+    @test all(abs.(∇latent_mixing_w .- ∇latent_mixing_w_gt).<eps)
+end;
+
+@testset "Checking cast_embed gradients" begin
+    ∇cast_embed_w = grad(total_loss, vq_model.model.cast_embed.w)
+    ∇cast_embed_b = grad(total_loss, vq_model.model.cast_embed.b)
+    ∇cast_embed_w_gt = numpy.load("files/grads/cast_embed-weight-grad.npy")
+    println(∇cast_embed_w[1:10,1])
+    println(∇cast_embed_w_gt[1:10,1])
+    eps = 5e-6
+    @test all(abs.(∇cast_embed_w .- ∇cast_embed_w_gt).<eps)
+end;
+
+@testset "Checking embed gradients" begin
+    ∇embed_w = grad(total_loss, vq_model.model.embed.w)
+    ∇embed_b = grad(total_loss, vq_model.model.embed.b)
+    ∇embed_w_gt = numpy.load("files/grads/embed-weight-grad.npy")
+    ∇embed_b_gt = numpy.load("files/grads/embed-bias-grad.npy")
+    eps = 5e-6
+    @test all(abs.(∇cast_embed_w .- ∇cast_embed_w_gt).<eps)
+    @test all(abs.(∇cast_embed_b .- ∇cast_embed_b_gt).<eps)
+end;
 
 

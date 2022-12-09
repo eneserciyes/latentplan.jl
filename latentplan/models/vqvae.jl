@@ -277,7 +277,7 @@ end
 
 
 function (v::VQStepWiseTransformer)(joined_inputs, state)
-    trajectory_feature = encode(v,joined_inputs)
+    trajectory_feature = encode(v, joined_inputs)
     latents_st, latents = straight_through(v.codebook, trajectory_feature)
     # # no bottleneck attention here
     joined_pred = decode(v, latents_st, state)
