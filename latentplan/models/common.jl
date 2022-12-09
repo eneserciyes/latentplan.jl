@@ -3,7 +3,7 @@ export Chain, Linear, ReLU, GELU, Dropout, Embedding, one_hot, LayerNorm, softma
 using Statistics: mean, var, std
 using Knet.Ops21: gelu
 using AutoGrad: @primitive
-# include("gelu.jl")
+
 include("repeat_new.jl")
 
 struct Chain
@@ -134,6 +134,3 @@ end
     pool_results = pool(reshape(x, size(x, 1), 1, :); window=m.window, stride=m.stride)
     reshape(pool_results, pooled_size, size(x)[2:end]...) 
 end
-
-
-
