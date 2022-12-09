@@ -117,26 +117,26 @@ vq_model.model.codebook.ema_w = Param(atype(weights["model.codebook.ema_w"][:cpu
 # padding vector
 vq_model.padding_vector = atype(numpy.load("files/padding_vector.npy"))
 
-# Reading input/output tensor
-joined_inputs_input = numpy.load("files/joined_inputs_vq_con_vae.npy")
-targets_input = numpy.load("files/targets.npy")
-mask_input = numpy.load("files/mask.npy")
-terminals_input = numpy.load("files/terminals.npy")
-reconstructed_gt = numpy.load("files/joined_pred.npy")
-reconstruction_loss_gt = numpy.load("files/reconstruction_loss.npy")
-loss_vq_gt = 0
-loss_commit_gt = numpy.load("files/loss_commit.npy")
-
 println("Setup done..")
-
 # Check forward first
 @testset "Testing VQContinuousVAE forward" begin
+    # Reading input/output tensor
+    joined_inputs_input = numpy.load("files/joined_inputs_vq_con_vae.npy")
+    targets_input = numpy.load("files/targets.npy")
+    mask_input = numpy.load("files/mask.npy")
+    terminals_input = numpy.load("files/terminals.npy")
+    reconstructed_gt = numpy.load("files/joined_pred.npy")
+    reconstruction_loss_gt = numpy.load("files/reconstruction_loss.npy")
+    loss_vq_gt = 0
+    loss_commit_gt = numpy.load("files/loss_commit.npy")
+
     reconstructed, reconstruction_loss, loss_vq, loss_commit = vq_model(
         permutedims(joined_inputs_input, (3, 2, 1)), 
         permutedims(targets_input, (3,2,1)), 
         permutedims(mask_input, (3,2,1)), 
         permutedims(terminals_input, (3,2,1))
     )
+
     eps = 5e-6
     @test all(abs.(reconstructed .- permutedims(reconstructed_gt, (3, 2, 1))).<eps)
     @test all(abs.(reconstruction_loss .- reconstruction_loss_gt).<eps)
@@ -146,28 +146,48 @@ end
 
 # Testing straight through gradient
 reset_codebook()
-
-trajectory_feature_input = Param(permutedims(numpy.load("files/trajectory_feature.npy"), (3,2,1)))
-traj_feat_grad_gt = permutedims(numpy.load("files/grads/trajectory_feature_straight_through_grad.npy"), (3,2,1))
 @testset "Testing straight through gradient" begin
+    trajectory_feature_input = Param(permutedims(numpy.load("files/trajectory_feature.npy"), (3,2,1)))
+    traj_feat_grad_gt = permutedims(numpy.load("files/grads/trajectory_feature_straight_through_grad.npy"), (3,2,1))
+
     lossfunc = (x) -> 2 * x[1][1,1,1] ^ 2 + x[1][2,2,1] ^ 2 + x[1][3,3,1] ^ 2
     loss = @diff lossfunc(straight_through(vq_model.model.codebook, trajectory_feature_input))
     traj_feat_grad = grad(loss, trajectory_feature_input)
+
     eps = 5e-6
     @test all(abs.(traj_feat_grad .- traj_feat_grad_gt).<eps)
 end
 
-# reset_codebook()
-# trajectory_feature_input = Param(permutedims(numpy.load("files/trajectory_feature.npy"), (3,2,1)))
-# traj_feat_grad_complex_gt = permutedims(numpy.load("files/grads/traj_feat-after_decode-grad.npy"), (3,2,1))
-# state_gt = numpy.load("files/state.npy")'
-# @testset "Testing straight through gradient complex" begin
-#     lossfunc = (latents_st,latents,state) -> sum(decode(vq_model.model, latents_st, state))
-#     loss = @diff lossfunc(straight_through(vq_model.model.codebook, trajectory_feature_input)..., state_gt)
-#     traj_feat_grad = grad(loss, trajectory_feature_input)
-#     eps = 5e-6
-#     @test all(abs.(traj_feat_grad .- traj_feat_grad_complex_gt).<eps)
-# end
+reset_codebook()
+@testset "Testing straight through gradient complex" begin
+    trajectory_feature_input = Param(permutedims(numpy.load("files/trajectory_feature.npy"), (3,2,1)))
+    traj_feat_grad_complex_gt = permutedims(numpy.load("files/grads/traj_feat-after_decode-grad.npy"), (3,2,1))
+    state_gt = numpy.load("files/state.npy")'
+
+    lossfunc = (latents_st,latents,state) -> sum(decode(vq_model.model, latents_st, state))
+    loss = @diff lossfunc(straight_through(vq_model.model.codebook, trajectory_feature_input)..., state_gt)
+    traj_feat_grad = grad(loss, trajectory_feature_input)
+    
+    eps = 5e-5
+    @test value(loss) ≈ 688.8791
+    @test all(abs.(traj_feat_grad .- traj_feat_grad_complex_gt).<eps)
+end
+
+reset_codebook()
+@testset "Testing cast_embed gradient complex" begin
+    cast_embed_input = Param(permutedims(numpy.load("files/cast_embed_input.npy"), (3,2,1)))
+    cast_embed_grad_complex_gt = numpy.load("files/grads/cast_embed_grad_complex.npy")
+    state_gt = numpy.load("files/state.npy")'
+
+    lossfunc = (latents_st,latents,state) -> sum(decode(vq_model.model, latents_st, state))
+    loss = @diff lossfunc(straight_through(vq_model.model.codebook, vq_model.model.cast_embed(cast_embed_input))..., state_gt)
+    cast_embed_grad_complex = grad(loss, vq_model.model.cast_embed.w)
+    
+    eps = 5e-3
+    @test value(loss) ≈ 688.8791
+    @test all(abs.(cast_embed_grad_complex .- cast_embed_grad_complex_gt).<eps)
+end
+
 reset_codebook()
 @testset "Testing latent-mixing cat gradient" begin
     latents = Param(permutedims(numpy.load("files/latents_st.npy"), (3,2,1)))
@@ -184,13 +204,15 @@ reset_codebook()
 end
 
 reset_codebook()
-@testset "Testing decode gradient end-to-end" begin
+@testset "Testing decode gradient" begin
     latents_st_input = Param(permutedims(numpy.load("files/latents_st.npy"), (3,2,1)))
     state_input = numpy.load("files/state.npy")'
-    latents_st_grad_gt = permutedims(numpy.load("files/grads/traj_feat-after_decode-grad.npy"), (3,2,1))
+    latents_st_grad_gt = permutedims(numpy.load("files/grads/latents_st-grad.npy"), (3,2,1))
+    
     loss = @diff sum(decode(vq_model.model, latents_st_input, state_input))
     latents_st_grad = grad(loss, latents_st_input)
-    eps = 5e-6
+    
+    eps = 5e-5
     @test value(loss) ≈ 688.8791
     @test all(abs.(latents_st_grad .- latents_st_grad_gt).<eps)
 end
@@ -206,9 +228,9 @@ total_loss = @diff losssum(vq_model(
     permutedims(terminals_input, (3,2,1))
 ))
 
-println("Gradient check..")
+println("End-to-end gradient check..")
 
-# check last layer predict gradients
+# check layer gradients
 
 @testset "Checking predict gradients" begin
     ∇predict_w = grad(total_loss, vq_model.model.predict.w)
@@ -235,21 +257,25 @@ end;
 end;
 
 @testset "Checking cast_embed gradients" begin
+    ∇cast_embed_w_gt = numpy.load("files/grads/cast_embed-weight-grad.npy")
+
     ∇cast_embed_w = grad(total_loss, vq_model.model.cast_embed.w)
     ∇cast_embed_b = grad(total_loss, vq_model.model.cast_embed.b)
-    ∇cast_embed_w_gt = numpy.load("files/grads/cast_embed-weight-grad.npy")
-    eps = 5e-6
+    
+    eps = 5e-3
     @test all(abs.(∇cast_embed_w .- ∇cast_embed_w_gt).<eps)
 end;
 
 @testset "Checking embed gradients" begin
-    ∇embed_w = grad(total_loss, vq_model.model.embed.w)
-    ∇embed_b = grad(total_loss, vq_model.model.embed.b)
     ∇embed_w_gt = numpy.load("files/grads/embed-weight-grad.npy")
     ∇embed_b_gt = numpy.load("files/grads/embed-bias-grad.npy")
-    eps = 5e-6
-    @test all(abs.(∇cast_embed_w .- ∇cast_embed_w_gt).<eps)
-    @test all(abs.(∇cast_embed_b .- ∇cast_embed_b_gt).<eps)
+
+    ∇embed_w = grad(total_loss, vq_model.model.embed.w)
+    ∇embed_b = grad(total_loss, vq_model.model.embed.b)
+    
+    eps = 5e-3
+    @test all(abs.(∇embed_w .- ∇embed_w_gt).<eps)
+    @test all(abs.(∇embed_b .- ∇embed_b_gt).<eps)
 end;
 
 

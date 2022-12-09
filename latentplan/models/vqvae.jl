@@ -242,8 +242,7 @@ function encode(v::VQStepWiseTransformer, joined_inputs)
     ## [embedding_dim x T x B]
     x = permutedims(v.latent_pooling(permutedims(x, (2, 1, 3))), (2,1,3)) # pooling (not attention)
     ## [embedding_dim x (T//latent_step) x B]
-    x = v.cast_embed(x)
-    return x
+    return v.cast_embed(x)
 end
 
 function decode(v::VQStepWiseTransformer, latents, state)
