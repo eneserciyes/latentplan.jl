@@ -11,7 +11,8 @@ This version is being implemented by Enes Erciyes for the Koç University Comp 5
 * Add this path to LD_LIBRARY_PATH in your shell init script. 
 * Add `PyCall` and `Conda` in your Julia environment.
 * Inside a Julia REPL, set `ENV["PYTHON"] = ""` and run `using PyCall`. This will set up a conda environment called `conda_jl`. 
-* Inside a Julia REPL, run `Conda.add("mesalib"; channel="conda-forge")`
+
+* Inside a Julia REPL, run `Conda.add("glew"; channel="conda-forge")` and `Conda.add("mesalib"; channel="conda-forge")`.
 * Then, run `Conda.pip_interop(true)` to be able to install pip dependencies.
 * Install the pip dependencies using:
 ```
