@@ -303,7 +303,7 @@ mutable struct VQContinuousVAE
     sum_reward_weight
     last_value_weight
     latent_step
-    padding_vector::Vector
+    padding_vector
 
     function VQContinuousVAE(config)
         model = VQStepWiseTransformer(config, config["observation_dim"])
