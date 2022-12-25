@@ -405,7 +405,7 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
             joined_inputs[end, end, :], 
             pred_trajectory[end, end, :]
         )
-        cross_entropy = binary_cross_entropy(pred_terminals, atype(clamp.(convert.(Float32, terminals),0.0f0, 1.0f0)))
+        cross_entropy = binary_cross_entropy(pred_terminals, atype(clamp.(convert.(Float32, cputype(terminals)),0.0f0, 1.0f0)))
         reconstruction_loss = mean((mse .* mask .* terminal_mask)) + cross_entropy
         reconstruction_loss = reconstruction_loss + first_action_loss + sum_reward_loss + last_value_loss
 
