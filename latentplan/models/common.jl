@@ -64,7 +64,7 @@ function one_hot(Type, indices, class_num)
     for index in CartesianIndices(indices)
         onehot[indices[index], index] = convert(Type, 1)
     end
-    onehot
+    atype(onehot)
 end
 
 @primitive one_hot(Type, indices, class_num),dy,y nothing nothing nothing
