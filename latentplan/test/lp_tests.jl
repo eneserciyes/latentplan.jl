@@ -9,6 +9,7 @@ if CUDA.functional()
 else	
 	atype=Array{Float32}
 end
+cputype=Array{Float32}
 
 include("../models/common.jl")
 include("../models/transformers.jl")
@@ -46,50 +47,50 @@ vq_model = VQContinuousVAE(config)
 
 ### embed / Linear test ###
 embed = Linear(config["transition_dim"], config["n_embd"])
-embed.w = Param(weights["model.embed.weight"][:cpu]()[:numpy]())
-embed.b = Param(weights["model.embed.bias"][:cpu]()[:numpy]())
+embed.w = Param(atype(weights["model.embed.weight"][:cpu]()[:numpy]()))
+embed.b = Param(atype(weights["model.embed.bias"][:cpu]()[:numpy]()))
 
 # Reading input/output tensor
-embed_test_input = numpy.load("files/joined_inputs.npy")
-embed_test_gt = numpy.load("files/token_embeddings.npy");
+embed_test_input = atype(numpy.load("files/joined_inputs.npy"))
+embed_test_gt = atype(numpy.load("files/token_embeddings.npy"));
 
 @testset "Testing Embed Linear" begin
     embed_out = embed(permutedims(embed_test_input, (3, 2, 1)))
     eps = 5e-6
 
-    @test all(abs.(embed_out .- permutedims(embed_test_gt, (3, 2, 1))).<eps)
+    @test all(abs.(cputype(embed_out .- permutedims(embed_test_gt, (3, 2, 1)))).<eps)
 
 end;
 
 ### Block test ###
 block = Block(config)
-block.ln1.a = Param(weights["model.encoder.0.ln1.weight"][:cpu]()[:numpy]())
-block.ln1.b = Param(weights["model.encoder.0.ln1.bias"][:cpu]()[:numpy]())
-block.ln2.a = Param(weights["model.encoder.0.ln2.weight"][:cpu]()[:numpy]())
-block.ln2.b = Param(weights["model.encoder.0.ln2.bias"][:cpu]()[:numpy]())
+block.ln1.a = Param(atype(weights["model.encoder.0.ln1.weight"][:cpu]()[:numpy]()))
+block.ln1.b = Param(atype(weights["model.encoder.0.ln1.bias"][:cpu]()[:numpy]()))
+block.ln2.a = Param(atype(weights["model.encoder.0.ln2.weight"][:cpu]()[:numpy]()))
+block.ln2.b = Param(atype(weights["model.encoder.0.ln2.bias"][:cpu]()[:numpy]()))
 
-block.attn.key.w = Param(weights["model.encoder.0.attn.key.weight"][:cpu]()[:numpy]())
-block.attn.key.b = Param(weights["model.encoder.0.attn.key.bias"][:cpu]()[:numpy]())
-block.attn.query.w = Param(weights["model.encoder.0.attn.query.weight"][:cpu]()[:numpy]())
-block.attn.query.b = Param(weights["model.encoder.0.attn.query.bias"][:cpu]()[:numpy]())
-block.attn.value.w = Param(weights["model.encoder.0.attn.value.weight"][:cpu]()[:numpy]())
-block.attn.value.b = Param(weights["model.encoder.0.attn.value.bias"][:cpu]()[:numpy]())
-block.attn.proj.w = Param(weights["model.encoder.0.attn.proj.weight"][:cpu]()[:numpy]())
-block.attn.proj.b = Param(weights["model.encoder.0.attn.proj.bias"][:cpu]()[:numpy]())
+block.attn.key.w = Param(atype(weights["model.encoder.0.attn.key.weight"][:cpu]()[:numpy]()))
+block.attn.key.b = Param(atype(weights["model.encoder.0.attn.key.bias"][:cpu]()[:numpy]()))
+block.attn.query.w = Param(atype(weights["model.encoder.0.attn.query.weight"][:cpu]()[:numpy]()))
+block.attn.query.b = Param(atype(weights["model.encoder.0.attn.query.bias"][:cpu]()[:numpy]()))
+block.attn.value.w = Param(atype(weights["model.encoder.0.attn.value.weight"][:cpu]()[:numpy]()))
+block.attn.value.b = Param(atype(weights["model.encoder.0.attn.value.bias"][:cpu]()[:numpy]()))
+block.attn.proj.w = Param(atype(weights["model.encoder.0.attn.proj.weight"][:cpu]()[:numpy]()))
+block.attn.proj.b = Param(atype(weights["model.encoder.0.attn.proj.bias"][:cpu]()[:numpy]()))
 
-block.mlp.layers[1].w = Param(weights["model.encoder.0.mlp.0.weight"][:cpu]()[:numpy]())
-block.mlp.layers[1].b = Param(weights["model.encoder.0.mlp.0.bias"][:cpu]()[:numpy]())
-block.mlp.layers[3].w = Param(weights["model.encoder.0.mlp.2.weight"][:cpu]()[:numpy]())
-block.mlp.layers[3].b = Param(weights["model.encoder.0.mlp.2.bias"][:cpu]()[:numpy]())
+block.mlp.layers[1].w = Param(atype(weights["model.encoder.0.mlp.0.weight"][:cpu]()[:numpy]()))
+block.mlp.layers[1].b = Param(atype(weights["model.encoder.0.mlp.0.bias"][:cpu]()[:numpy]()))
+block.mlp.layers[3].w = Param(atype(weights["model.encoder.0.mlp.2.weight"][:cpu]()[:numpy]()))
+block.mlp.layers[3].b = Param(atype(weights["model.encoder.0.mlp.2.bias"][:cpu]()[:numpy]()))
 
 # Reading input/output tensor
-block_test_input = numpy.load("files/block_input.npy")
-block_test_gt = numpy.load("files/block_output_gt.npy");
+block_test_input = atype(numpy.load("files/block_input.npy"))
+block_test_gt = atype(numpy.load("files/block_output_gt.npy"));
 
 @testset "Testing Block" begin
     block_out = block(permutedims(block_test_input, (3, 2, 1)))
     eps = 5e-6
-    @test all(abs.(block_out .- permutedims(block_test_gt, (3, 2, 1))).<eps)
+    @test all(abs.(cputype(block_out .- permutedims(block_test_gt, (3, 2, 1)))).<eps)
 end;
 
 ### Straigh Through test ### 
@@ -99,56 +100,56 @@ st_input = atype(numpy.load("files/trajectory_feature.npy"))
 latents_st_gt = atype(numpy.load("files/latents_st.npy"));
 latents_gt = atype(numpy.load("files/latents.npy"));
 ema_w_one_update_gt = atype(numpy.load("files/ema_w_one_update.npy"));
-ema_count_one_update_gt = numpy.load("files/ema_count_one_update.npy");
+ema_count_one_update_gt = atype(numpy.load("files/ema_count_one_update.npy"));
 
 codebook = VQEmbeddingMovingAverage(config["trajectory_embd"], config["K"])
 codebook.embedding = Param(atype(weights["model.codebook.embedding"][:cpu]()[:numpy]()'))
-codebook.ema_count = Param(weights["model.codebook.ema_count"][:cpu]()[:numpy]())
+codebook.ema_count = Param(atype(weights["model.codebook.ema_count"][:cpu]()[:numpy]()))
 codebook.ema_w = Param(atype(weights["model.codebook.ema_w"][:cpu]()[:numpy]()'))
 
 @testset "Testing Straight Through Forward" begin
     latents_st, latents = straight_through(codebook, permutedims(st_input, (3, 2, 1)))
     eps = 5e-6
-    @test all(abs.(latents_st .- permutedims(latents_st_gt, (3, 2, 1))).<eps)
-    @test all(abs.(latents .- permutedims(latents_gt, (3, 2, 1))).<eps)
-    @test all(abs.(codebook.ema_count .- ema_count_one_update_gt).<eps)
-    @test all(abs.(codebook.ema_w .- ema_w_one_update_gt').<eps)
+    @test all(abs.(cputype(latents_st .- permutedims(latents_st_gt, (3, 2, 1)))).<eps)
+    @test all(abs.(cputype(latents .- permutedims(latents_gt, (3, 2, 1)))).<eps)
+    @test all(abs.(cputype(codebook.ema_count .- ema_count_one_update_gt)).<eps)
+    @test all(abs.(cputype(codebook.ema_w .- ema_w_one_update_gt')).<eps)
 end;
 
 ### Encoder full test ###
 
-vq_model.model.embed.w = Param(weights["model.embed.weight"][:cpu]()[:numpy]())
-vq_model.model.embed.b = Param(weights["model.embed.bias"][:cpu]()[:numpy]())
+vq_model.model.embed.w = Param(atype(weights["model.embed.weight"][:cpu]()[:numpy]()))
+vq_model.model.embed.b = Param(atype(weights["model.embed.bias"][:cpu]()[:numpy]()))
 
-vq_model.model.pos_emb = Param(permutedims(weights["model.pos_emb"][:cpu]()[:numpy](), (3,2,1)))
+vq_model.model.pos_emb = Param(atype(permutedims(weights["model.pos_emb"][:cpu]()[:numpy](), (3,2,1))))
 
 for i in 1:config["n_layer"]
-    vq_model.model.encoder.layers[i].ln1.a = Param(weights["model.encoder.$(i-1).ln1.weight"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].ln1.b = Param(weights["model.encoder.$(i-1).ln1.bias"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].ln2.a = Param(weights["model.encoder.$(i-1).ln2.weight"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].ln2.b = Param(weights["model.encoder.$(i-1).ln2.bias"][:cpu]()[:numpy]())
+    vq_model.model.encoder.layers[i].ln1.a = Param(atype(weights["model.encoder.$(i-1).ln1.weight"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].ln1.b = Param(atype(weights["model.encoder.$(i-1).ln1.bias"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].ln2.a = Param(atype(weights["model.encoder.$(i-1).ln2.weight"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].ln2.b = Param(atype(weights["model.encoder.$(i-1).ln2.bias"][:cpu]()[:numpy]()))
 
-    vq_model.model.encoder.layers[i].attn.key.w = Param(weights["model.encoder.$(i-1).attn.key.weight"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].attn.key.b = Param(weights["model.encoder.$(i-1).attn.key.bias"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].attn.query.w = Param(weights["model.encoder.$(i-1).attn.query.weight"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].attn.query.b = Param(weights["model.encoder.$(i-1).attn.query.bias"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].attn.value.w = Param(weights["model.encoder.$(i-1).attn.value.weight"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].attn.value.b = Param(weights["model.encoder.$(i-1).attn.value.bias"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].attn.proj.w = Param(weights["model.encoder.$(i-1).attn.proj.weight"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].attn.proj.b = Param(weights["model.encoder.$(i-1).attn.proj.bias"][:cpu]()[:numpy]())
+    vq_model.model.encoder.layers[i].attn.key.w = Param(atype(weights["model.encoder.$(i-1).attn.key.weight"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].attn.key.b = Param(atype(weights["model.encoder.$(i-1).attn.key.bias"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].attn.query.w = Param(atype(weights["model.encoder.$(i-1).attn.query.weight"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].attn.query.b = Param(atype(weights["model.encoder.$(i-1).attn.query.bias"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].attn.value.w = Param(atype(weights["model.encoder.$(i-1).attn.value.weight"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].attn.value.b = Param(atype(weights["model.encoder.$(i-1).attn.value.bias"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].attn.proj.w = Param(atype(weights["model.encoder.$(i-1).attn.proj.weight"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].attn.proj.b = Param(atype(weights["model.encoder.$(i-1).attn.proj.bias"][:cpu]()[:numpy]()))
 
-    vq_model.model.encoder.layers[i].mlp.layers[1].w = Param(weights["model.encoder.$(i-1).mlp.0.weight"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].mlp.layers[1].b = Param(weights["model.encoder.$(i-1).mlp.0.bias"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].mlp.layers[3].w = Param(weights["model.encoder.$(i-1).mlp.2.weight"][:cpu]()[:numpy]())
-    vq_model.model.encoder.layers[i].mlp.layers[3].b = Param(weights["model.encoder.$(i-1).mlp.2.bias"][:cpu]()[:numpy]())
+    vq_model.model.encoder.layers[i].mlp.layers[1].w = Param(atype(weights["model.encoder.$(i-1).mlp.0.weight"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].mlp.layers[1].b = Param(atype(weights["model.encoder.$(i-1).mlp.0.bias"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].mlp.layers[3].w = Param(atype(weights["model.encoder.$(i-1).mlp.2.weight"][:cpu]()[:numpy]()))
+    vq_model.model.encoder.layers[i].mlp.layers[3].b = Param(atype(weights["model.encoder.$(i-1).mlp.2.bias"][:cpu]()[:numpy]()))
 end
 
-vq_model.model.cast_embed.w = Param(weights["model.cast_embed.weight"][:cpu]()[:numpy]())
-vq_model.model.cast_embed.b = Param(weights["model.cast_embed.bias"][:cpu]()[:numpy]())
+vq_model.model.cast_embed.w = Param(atype(weights["model.cast_embed.weight"][:cpu]()[:numpy]()))
+vq_model.model.cast_embed.b = Param(atype(weights["model.cast_embed.bias"][:cpu]()[:numpy]()))
 
 # Reading input/output tensor
-encoder_input = numpy.load("files/joined_inputs.npy")
-encoder_test_gt = numpy.load("files/trajectory_feature.npy")
+encoder_input = atype(numpy.load("files/joined_inputs.npy"))
+encoder_test_gt = atype(numpy.load("files/trajectory_feature.npy"))
 
 @testset "Testing Encoder" begin
     encoder_out = encode(vq_model.model, permutedims(encoder_input, (3, 2, 1)))

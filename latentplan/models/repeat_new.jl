@@ -26,12 +26,12 @@ end
 
 function _repeat_broadcast(A,x,r)
     Asize = size(A)
-    Ahat = reshape(A, Asize[1:x]..., 1, Asize[x+1:end]...) .* ones(eltype(A), Asize[1:x]..., r, Asize[x+1:end]...)
+    Ahat = reshape(A, Asize[1:x]..., 1, Asize[x+1:end]...) .* atype(ones(eltype(A), Asize[1:x]..., r, Asize[x+1:end]...))
     return reshape(Ahat, Asize[1:x-1]..., Asize[x]*r, Asize[x+1:end]...)
 end
 
 function _repeat_interleave(A, x, r)
     Asize = size(A)
-    Ahat = reshape(A, Asize[1:x-1]..., 1, Asize[x:end]...) .* ones(eltype(A), Asize[1:x-1]..., r, Asize[x:end]...)
+    Ahat = reshape(A, Asize[1:x-1]..., 1, Asize[x:end]...) .* atype(ones(eltype(A), Asize[1:x-1]..., r, Asize[x:end]...))
     return reshape(Ahat, Asize[1:x-1]..., Asize[x]*r, Asize[x+1:end]...)
 end
