@@ -9,7 +9,7 @@ using Random: shuffle
 
 function squeeze(A::AbstractArray)
     singleton_dims = tuple((d for d in 1:ndims(A) if size(A, d) == 1)...)
-    return dropdims(A, dims=singleton_dims)
+    return dropdims_n(A, dims=singleton_dims)
 end
 
 function segment(observations, terminals, max_path_length)
@@ -137,7 +137,7 @@ struct SequenceDataset;
         discounts = reshape(discount .^ collect(0:max_path_length-1), 1, :)
         values_segmented = compute_values(rewards_segmented, discounts, max_path_length)
 
-        values_raw = reshape(dropdims(values_segmented, dims=ndims(values_segmented)), :)
+        values_raw = reshape(dropdims_n(values_segmented, dims=tuple(ndims(values_segmented))), :)
         values_mask = .!reshape(termination_flags, :)
         values_raw = reshape(values_raw[values_mask], 1, :)
 

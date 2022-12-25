@@ -2,8 +2,13 @@ using Test
 using PyCall
 using Knet
 using Debugger: @enter, @bp, @run
+using CUDA
 
-atype=Array{Float32}
+if CUDA.functional()
+	atype=KnetArray{Float32}
+else	
+	atype=Array{Float32}
+end
 
 include("../models/common.jl")
 include("../models/transformers.jl")
@@ -90,10 +95,10 @@ end;
 ### Straigh Through test ### 
 
 # Reading input/output tensor
-st_input = numpy.load("files/trajectory_feature.npy")
-latents_st_gt = numpy.load("files/latents_st.npy");
-latents_gt = numpy.load("files/latents.npy");
-ema_w_one_update_gt = numpy.load("files/ema_w_one_update.npy");
+st_input = atype(numpy.load("files/trajectory_feature.npy"))
+latents_st_gt = atype(numpy.load("files/latents_st.npy"));
+latents_gt = atype(numpy.load("files/latents.npy"));
+ema_w_one_update_gt = atype(numpy.load("files/ema_w_one_update.npy"));
 ema_count_one_update_gt = numpy.load("files/ema_count_one_update.npy");
 
 codebook = VQEmbeddingMovingAverage(config["trajectory_embd"], config["K"])
