@@ -68,9 +68,6 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
             end
         end
     end
-
-
-
 end
 
 s = ArgParseSettings()
@@ -162,9 +159,7 @@ model.padding_vector = normalize_joined_single(dataset, atype(zeros(Float32, mod
 warmup_tokens = length(dataset) * block_size
 final_tokens = 20 * warmup_tokens
 
-n_epochs = Int(floor(1e6 / length(dataset) * args["n_epochs_ref"]))
-save_freq = Int(floor(n_epochs / args["n_saves"]))
-#TODO: wandb init
+
 
 # training config
 trainer_config = Dict(
@@ -179,11 +174,20 @@ trainer_config = Dict(
     "lr_decay" => args["lr_decay"],
 )
 
-# for epoch in 1:n_epochs
-#     @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
-#     @enter vq_train(trainer_config, model, dataset)
+#######################
+###### main loop ######
+#######################
 
-#     save_epoch = (epoch + 1) ÷ save_freq * save_freq
-#     statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
-#     # TODO: model save
-# end
+## scale number of epochs to keep number of updates constant
+n_epochs = Int(floor(1e6 / length(dataset) * args["n_epochs_ref"]))
+save_freq = Int(floor(n_epochs / args["n_saves"]))
+#TODO: wandb init
+
+for epoch in 1:n_epochs
+    @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
+    vq_train(trainer_config, model, dataset)
+
+    save_epoch = (epoch + 1) ÷ save_freq * save_freq
+    statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
+    Knet.save(model, joinpath(args["savepath"], "state_$save_epoch.jld2"))
+end
