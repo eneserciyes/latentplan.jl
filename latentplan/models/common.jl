@@ -6,6 +6,7 @@ using AutoGrad: @primitive
 
 include("repeat_new.jl")
 include("dropdims_new.jl")
+include("AdamW.jl")
 
 struct Chain
     layers
