@@ -18,7 +18,8 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
     if dataset === nothing
         dataset = env.get_dataset(;kwargs...)
     end
-    N = size(dataset["rewards"], ndims(dataset["rewards"]))
+    N = size(dataset["rewards"])[end]
+    @show N
     obs_ = Vector{Vector{Float32}}(undef, N-1)
     next_obs_ = Vector{Vector{Float32}}(undef, N-1)
     action_ = Vector{Vector{Float32}}(undef, N-1)

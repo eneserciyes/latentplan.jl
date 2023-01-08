@@ -13,7 +13,10 @@ function parser(args::Dict{String, Any}; experiment::Union{String, Nothing}=noth
 
     args = merge(params, args)
 
-    seed!(parse(Int, args["seed"]))
+    if typeof(args["seed"]) != Int
+        args["seed"] = parse(Int, args["seed"])
+    end
+    seed!(args["seed"])
     make_dir(args)
     
     args["task_type"] = "locomotion"

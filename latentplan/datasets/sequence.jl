@@ -25,7 +25,7 @@ function segment(observations, terminals, max_path_length)
     end
 
     if length(trajectories[end]) == 0
-        trajectories = trajectories[:end-1]
+        trajectories = trajectories[1:end-1]
     end
 
     trajectories = [reduce(hcat, trajectory) for trajectory in trajectories]
@@ -204,8 +204,8 @@ function denormalize(s::SequenceDataset, states, actions, rewards, values)
 end
 
 function normalize_joined_single(s::SequenceDataset, joined)
-    joined_std = atype(vcat(s.obs_std[:, 1], s.act_std[:, 1], [s.reward_std;], [s.value_std;]))
-    joined_mean = atype(vcat(s.obs_mean[:, 1], s.act_mean[:, 1], [s.reward_mean;], [s.value_mean;]))
+    joined_std = s.atype(vcat(s.obs_std[:, 1], s.act_std[:, 1], [s.reward_std;], [s.value_std;]))
+    joined_mean = s.atype(vcat(s.obs_mean[:, 1], s.act_mean[:, 1], [s.reward_mean;], [s.value_mean;]))
     return (joined .- joined_mean) ./ joined_std
 end
 
