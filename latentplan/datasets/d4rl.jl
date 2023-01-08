@@ -18,7 +18,7 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
     if dataset === nothing
         dataset = env.get_dataset(;kwargs...)
     end
-    N = debug ? 50 : size(dataset["rewards"], 1)
+    N = size(dataset["rewards"], ndims(dataset["rewards"]))
     obs_ = Vector{Vector{Float32}}(undef, N-1)
     next_obs_ = Vector{Vector{Float32}}(undef, N-1)
     action_ = Vector{Vector{Float32}}(undef, N-1)
@@ -35,7 +35,7 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
     end
 
     episode_step = 0
-    @showprogress "Generating dataset" for i = 1:N-1
+    for i = 1:N-1
         obs = dataset["observations"][i,:]
         new_obs = dataset["observations"][i+1,:]
         action = dataset["actions"][i,:]

@@ -22,7 +22,7 @@ end
 
 abstract type AbstractConfig end
 
-logbase = "~/logs/"
+logbase = "~/logs_julia/"
 gpt_expname = "vae/vq"
 
 args_to_watch = [
@@ -145,7 +145,8 @@ pen_cloned_v0 = pen_expert_v0 = pen_human_v0 = Dict{String,AbstractConfig}(
         "termination_penalty" => nothing,
         "max_path_length" => 100,
         "n_epochs_ref" => 10,
-        "subsampled_sequence_length" => 25
+        "subsampled_sequence_length" => 25,
+        "n_layer" => 3,
     )),
     "plan" => from_dict(Plan, Dict{String,Any}(
         "horizon" => 24,

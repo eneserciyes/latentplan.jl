@@ -9,6 +9,71 @@ include("LPCore.jl")
 include("setup.jl")
 using .LPCore
 
+function prior_train(config, representation::VQContinuousVAE, model::TransformerPrior, dataset::SequenceDataset; n_epochs=1, log_freq=100)
+    # set optimizers
+    opt_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=config["weight_decay"], gclip=config["grad_norm_clip"])
+    opt_no_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=0.0, gclip=config["grad_norm_clip"])
+
+    for p in paramlist_decay(model)
+        p.opt = clone(opt_decay)
+    end
+    for p in paramlist_no_decay(model)
+        p.opt = clone(opt_no_decay)
+    end
+
+    n_tokens = 0
+    loader = DataLoader(dataset; shuffle=false, batch_size=config["batch_size"])
+
+    for epoch in 1:n_epochs
+        losses = []
+        for (it, batch) in enumerate(loader)
+            y = batch[end-1]
+            n_tokens += prod(size(y))
+
+            if n_tokens < config["warmup_tokens"]
+                # linear warmup
+                lr_mult = float(n_tokens) / float(max(1, config["warmup_tokens"]))
+            else
+                # cosine learning rate decay
+                progress = float(n_tokens - config["warmup_tokens"]) / float(
+                    max(1, config["final_tokens"] - config["warmup_tokens"])
+                )
+                lr_mult = max(0.1, 0.5 * (1.0 + cos(pi * progress)))
+            end
+
+            if config["lr_decay"]
+                lr = config["learning_rate"] * lr_mult
+                for p in paramlist(model)
+                    p.opt.lr = lr
+                end
+            else
+                lr = config["learning_rate"]
+            end
+            
+            states = batch[1][1:model.observation_dim, 1, :]
+            indices = encode(representation, batch[1], batch[end])
+            # forward the model
+            total_loss = @diff model(indices[1:end-1,:], states, indices)
+            push!(losses, value(total_loss))
+            for p in paramlist(model)
+                update!(p, grad(total_loss, p))
+            end
+
+            # report progress
+            if it % log_freq == 0
+                @printf(
+                    "[ utils/training ] epoch %d [%d / %d] train loss %.5f, lr %.3e\n",
+                    epoch,
+                    it,
+                    len(loader)
+                    value(total_loss),
+                    lr,
+                )
+            end
+        end
+    end
+end
+
 s = ArgParseSettings()
 @add_arg_table! s begin
     "--dataset"
@@ -98,13 +163,15 @@ trainer_config = Dict(
 ## scale number of epochs to keep number of updates constant
 n_epochs = Int(floor(1e6 / length(dataset) * args["n_epochs_ref"]))
 save_freq = Int(floor(n_epochs / args["n_saves"]))
-#TODO: wandb init
+
 
 for epoch in 1:n_epochs
     @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
+    prior_train(trainer_config, representation, model, dataset)
 
     save_epoch = (epoch + 1) ÷ save_freq * save_freq
     statepath = joinpath(args["savepath"], "prior_state_$save_epoch.jld2")
 
     #TODO: model save
+    Knet.save(statepath, "model", model)
 end

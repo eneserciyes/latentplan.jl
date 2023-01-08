@@ -13,7 +13,7 @@ function parser(args::Dict{String, Any}; experiment::Union{String, Nothing}=noth
 
     args = merge(params, args)
 
-    seed!(args["seed"])
+    seed!(parse(Int, args["seed"]))
     make_dir(args)
     
     args["task_type"] = "locomotion"
@@ -49,15 +49,15 @@ function read_config(args::Dict{String, Any}, experiment::Union{String, Nothing}
     dataset = replace(args["dataset"], "-" => "_")
     config = args["config"]
     println("[ utils/setup ] Reading config: $config:$dataset")
-    if hasproperty(VQVAEConfig, Symbol(dataset))
-        params = getproperty(config_module, Symbol(dataset))[experiment]
-        print("Overriding base configs with $dataset configs.")
-    else
-        if experiment == "train"
-            params = VQVAEConfig.Train()
-        elseif experiment == "plan"
-            params = VQVAEConfig.Plan()
-        end
+    # if hasproperty(VQVAEConfig, Symbol(dataset))
+    #     params = getproperty(config_module, Symbol(dataset))[experiment]
+    #     print("Overriding base configs with $dataset configs.")
+    # else
+    if experiment == "train"
+        params = VQVAEConfig.Train()
+    elseif experiment == "plan"
+        params = VQVAEConfig.Plan()
     end
+    # end
     return params
 end

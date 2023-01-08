@@ -97,10 +97,8 @@ struct SequenceDataset;
         env = typeof(env) == String ? load_environment(env) : env
         println("[ datasets/sequence ] Loading...")
 
-        dataset = qlearning_dataset_with_timeouts(env.unwrapped, terminate_on_end=true, disable_goal=disable_goal, debug=true)
+        dataset = qlearning_dataset_with_timeouts(env.unwrapped, terminate_on_end=true, disable_goal=disable_goal, debug=false)
         println('✓')
-
-        # TODO: preprocess_fn
 
         ##
         observations = dataset["observations"]
@@ -206,8 +204,8 @@ function denormalize(s::SequenceDataset, states, actions, rewards, values)
 end
 
 function normalize_joined_single(s::SequenceDataset, joined)
-    joined_std = vcat(s.obs_std[:, 1], s.act_std[:, 1], [s.reward_std;], [s.value_std;])
-    joined_mean = vcat(s.obs_mean[:, 1], s.act_mean[:, 1], [s.reward_mean;], [s.value_mean;])
+    joined_std = atype(vcat(s.obs_std[:, 1], s.act_std[:, 1], [s.reward_std;], [s.value_std;]))
+    joined_mean = atype(vcat(s.obs_mean[:, 1], s.act_mean[:, 1], [s.reward_mean;], [s.value_mean;]))
     return (joined .- joined_mean) ./ joined_std
 end
 
@@ -239,7 +237,7 @@ function get_item(s::SequenceDataset, idx)
     
     traj_inds = Vector(start_ind:s.step:end_ind-1)
     mask = ones(Bool, size(joined))
-    mask[:, traj_inds .>= s.max_path_length - s.step + 1] .= 0 #TODO: burada bir seyler olabilir
+    mask[:, traj_inds .>= s.max_path_length - s.step + 1] .= 0
     terminal = (.~cumprod(.~(reshape(s.termination_flags[start_ind:s.step:end_ind-1, path_ind], 1, :, 1)), dims=1))[:,:,1]
     X = convert(s.atype, joined[:, 1:end-1])
     Y = convert(s.atype, joined[:, 2:end])
@@ -282,6 +280,10 @@ struct DataLoader
     end
 end
 
+
+function Base.length(d::DataLoader)
+    return length(d.dataset) ÷ d.batch_size
+end
 
 function Base.iterate(d::DataLoader)
     indices = 1:length(d.dataset)

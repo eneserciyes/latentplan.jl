@@ -72,8 +72,6 @@ discount = dataset.discount
 observation_dim = dataset.observation_dim
 action_dim = dataset.action_dim
 
-# TODO: get preprocess_fn here
-
 #######################
 ###### main loop ######
 #######################

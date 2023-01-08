@@ -17,7 +17,6 @@ include("setup.jl")
 using .LPCore
 
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
-clone(a::AdamW)=AdamW(a.lr,a.beta1,a.beta2,a.eps,0,a.gclip,a.weight_decay,nothing,nothing)
 
 function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_epochs=1, log_freq=100)
     # set optimizers
@@ -32,7 +31,7 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
     end
 
     n_tokens = 0
-    loader = DataLoader(dataset; shuffle=false, batch_size=config["batch_size"])
+    loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
 
     for epoch in 1:n_epochs
         losses = []
