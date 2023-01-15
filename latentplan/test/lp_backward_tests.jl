@@ -302,14 +302,15 @@ for p in paramlist_no_decay(vq_model)
     p.opt = clone(opt_no_decay)
 end
 
-for p in paramlist(vq_model)
-    update!(p, grad(total_loss, p))
-end
+# for p in paramlist(vq_model)
+#     update!(p, grad(total_loss, p))
+# end
 
+update!(vq_model.model.decoder.layers[1].attn.key.w, grad(total_loss, vq_model.model.decoder.layers[1].attn.key.w))
 weights_optimized = torch.load("files/gpt_weights_optimize_1step.pt")
 
 @testset "Checking weights after 1 step" begin
-    eps = 5e-4
+    eps = 5e-6
     updated_weights = vq_model.model.decoder.layers[1].attn.key.w 
     gt_weights = weights_optimized["model.decoder.0.attn.key.weight"][:cpu]()[:numpy]()
     @show cputype(value(updated_weights))[1:5, 1:5]

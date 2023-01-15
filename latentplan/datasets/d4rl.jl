@@ -1,5 +1,5 @@
 using PyCall
-using ProgressMeter
+using ProgressMeter: @showprogress
 
 d4rl = pyimport("d4rl")
 gym = pyimport("gym")
