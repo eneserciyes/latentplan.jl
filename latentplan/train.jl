@@ -5,12 +5,12 @@ using Knet
 using Debugger: @enter, @bp, @run
 
 # only while debugging
-using JuliaInterpreter
-using MethodAnalysis
-visit(Base) do item
-    isa(item, Module) && push!(JuliaInterpreter.compiled_modules, item)
-    true
-end
+# using JuliaInterpreter
+# using MethodAnalysis
+# visit(Base) do item
+#     isa(item, Module) && push!(JuliaInterpreter.compiled_modules, item)
+#     true
+# end
 
 include("LPCore.jl")
 include("setup.jl")

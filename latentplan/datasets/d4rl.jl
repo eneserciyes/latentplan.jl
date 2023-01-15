@@ -19,7 +19,6 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
         dataset = env.get_dataset(;kwargs...)
     end
     N = size(dataset["rewards"])[end]
-    @show N
     obs_ = Vector{Vector{Float32}}(undef, N-1)
     next_obs_ = Vector{Vector{Float32}}(undef, N-1)
     action_ = Vector{Vector{Float32}}(undef, N-1)
@@ -51,14 +50,14 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
         end
 
         if i < N
-            done_bool = Bool(done_bool + final_timestep)
+            done_bool += final_timestep
         end
 
         if !terminate_on_end && final_timestep
             episode_step = 0
             continue
         end
-        if done_bool || final_timestep
+        if done_bool>0 || final_timestep
             episode_step=0
         end
 
@@ -71,20 +70,13 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
         episode_step += 1
     end
 
-    obs_ = obs_[1:episode_step]
-    next_obs_ = next_obs_[1:episode_step]
-    action_ = action_[1:episode_step]
-    reward_ = reward_[1:episode_step]
-    done_ = done_[1:episode_step]
-    realdone_ = realdone_[1:episode_step]
-
     return Dict(
         "observations"=>reduce(hcat, obs_),
         "actions"=>reduce(hcat, action_),
         "next_observations"=>reduce(hcat, next_obs_),
         "rewards"=> reshape(reward_, 1, :),
-        "terminals"=>done_,
-        "realterminals"=>realdone_,
+        "terminals"=>reshape(done_, 1, :),
+        "realterminals"=>reshape(realdone_, 1, :),
     )
 end
 
