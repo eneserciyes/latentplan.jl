@@ -3,6 +3,7 @@ using PyCall
 using Knet
 using Debugger: @enter, @bp, @run
 using CUDA
+using ProgressMeter: @showprogress
 
 if CUDA.functional()
 	atype=KnetArray{Float32}
@@ -52,25 +53,6 @@ dataset = SequenceDataset(
     atype=atype
 )
 
-# @testset "Q-Learning dataset with timeouts" begin
-#     obs_gt = numpy.load("files/datasets/obs.npy")'
-#     action_gt = numpy.load("files/datasets/actions.npy")'
-#     next_obs_gt = numpy.load("files/datasets/next_obs.npy")'
-#     rewards_gt = numpy.load("files/datasets/rewards.npy")'
-#     terminals_gt = numpy.load("files/datasets/terminals.npy")'
-#     realterminals_gt = numpy.load("files/datasets/real_terminals.npy")'
-
-#     # env = typeof(env_name) == String ? load_environment(env_name) : env_name
-#     # dataset = qlearning_dataset_with_timeouts(env.unwrapped, terminate_on_end=true, disable_goal=args["disable_goal"], debug=false)
-    
-#     @test all(dataset["observations"] .≈ obs_gt)
-#     @test all(dataset["actions"] .≈ action_gt)
-#     @test all(dataset["next_observations"] .≈ next_obs_gt)
-#     @test all(dataset["rewards"] .≈ rewards_gt)
-#     @test all(dataset["terminals"] .≈ terminals_gt)
-#     @test all(dataset["realterminals"] .≈ realterminals_gt)
-# end
-
 @testset "Dataset properties" begin
     @test length(dataset) == 1997999
     @test dataset.train_portion == 1.0
@@ -96,4 +78,50 @@ dataset = SequenceDataset(
     @test dataset.step == 1
     @test dataset.sequence_length == 25
     @test length(dataset.path_lengths) == 2000
+end
+
+@testset "DataLoader tests" begin
+    batch1_1 = permutedims(numpy.load("files/datasets/batch0_0.npy"), (3,2,1))
+    batch1_2 = permutedims(numpy.load("files/datasets/batch0_1.npy"), (3,2,1))
+    batch1_3 = permutedims(numpy.load("files/datasets/batch0_2.npy"), (3,2,1))
+    batch1_4 = permutedims(numpy.load("files/datasets/batch0_3.npy"), (3,2,1))
+
+    batch2_1 = permutedims(numpy.load("files/datasets/batch1_0.npy"), (3,2,1))
+    batch2_2 = permutedims(numpy.load("files/datasets/batch1_1.npy"), (3,2,1))
+    batch2_3 = permutedims(numpy.load("files/datasets/batch1_2.npy"), (3,2,1))
+    batch2_4 = permutedims(numpy.load("files/datasets/batch1_3.npy"), (3,2,1))
+    
+    batch3_1 = permutedims(numpy.load("files/datasets/batch2_0.npy"), (3,2,1))
+    batch3_2 = permutedims(numpy.load("files/datasets/batch2_1.npy"), (3,2,1))
+    batch3_3 = permutedims(numpy.load("files/datasets/batch2_2.npy"), (3,2,1))
+    batch3_4 = permutedims(numpy.load("files/datasets/batch2_3.npy"), (3,2,1))
+
+    loader = DataLoader(dataset; shuffle=false, batch_size=args["batch_size"])
+    batch1 = nothing; batch2 = nothing; batch3 = nothing
+    @showprogress "Iterating dataloader" for (it, batch) in enumerate(loader)
+        if it==1
+            batch1 = batch
+        elseif it==1000
+            batch2 = batch
+        elseif it==3903
+            batch3 = batch
+        end
+    end
+
+    @test length(loader) == 3903
+    @test all(batch1[1] .≈ batch1_1)
+    @test all(batch1[2] .≈ batch1_2)
+    @test all(batch1[3] .≈ batch1_3)
+    @test all(batch1[4] .≈ batch1_4)
+
+    @test all(batch2[1] .≈ batch2_1)
+    @test all(batch2[2] .≈ batch2_2)
+    @test all(batch2[3] .≈ batch2_3)
+    @test all(batch2[4] .≈ batch2_4)
+
+    @test size(batch3[1], 3) == 175
+    @test all(batch3[1] .≈ batch3_1)
+    @test all(batch3[2] .≈ batch3_2)
+    @test all(batch3[3] .≈ batch3_3)
+    @test all(batch3[4] .≈ batch3_4)
 end

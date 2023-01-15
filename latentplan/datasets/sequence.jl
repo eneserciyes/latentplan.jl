@@ -239,7 +239,7 @@ function get_item(s::SequenceDataset, idx)
     
     traj_inds = Vector(start_ind:s.step:end_ind-1)
     mask = ones(Bool, size(joined))
-    mask[:, traj_inds .>= s.max_path_length - s.step + 1] .= 0
+    mask[:, traj_inds .> s.max_path_length - s.step + 1] .= 0
     terminal = (.~cumprod(.~(reshape(s.termination_flags[start_ind:s.step:end_ind-1, path_ind], 1, :, 1)), dims=1))[:,:,1]
     X = convert(s.atype, joined[:, 1:end-1])
     Y = convert(s.atype, joined[:, 2:end])
@@ -257,7 +257,7 @@ function get_test(s::SequenceDataset)
         joined = s.joined_segmented[:, start_ind:s.step:end_ind-1, path_ind]
         traj_inds = Vector(start_ind:s.step:end_ind-1)
         mask = ones(Bool, size(joined))
-        mask[:, traj_inds .>= s.max_path_length - s.step + 1] .= 0 
+        mask[:, traj_inds .> s.max_path_length - s.step + 1] .= 0 
         terminal = (.~cumprod(.~(reshape(s.termination_flags[start_ind:s.step:end_ind-1, path_ind], 1, :, 1)), dims=1))[:,:,1]
         X = joined[:, 1:end-1]
         Y = joined[:, 2:end]
@@ -284,7 +284,7 @@ end
 
 
 function Base.length(d::DataLoader)
-    return length(d.dataset) ÷ d.batch_size
+    return ceil(Int, length(d.dataset) / d.batch_size)
 end
 
 function Base.iterate(d::DataLoader)
