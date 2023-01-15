@@ -6,6 +6,7 @@ using Printf
 using Statistics: mean, std
 using ProgressMeter: @showprogress
 using Random: shuffle
+using Debugger: @bp
 
 function squeeze(A::AbstractArray)
     singleton_dims = tuple((d for d in 1:ndims(A) if size(A, d) == 1)...)
@@ -13,7 +14,7 @@ function squeeze(A::AbstractArray)
 end
 
 function segment(observations, terminals, max_path_length)
-    @assert size(observations, 2) == size(terminals, 1)
+    @assert size(observations, 2) == size(terminals, 2)
     observation_dim = size(observations, 1)
     trajectories = [[]]
 
@@ -107,6 +108,7 @@ struct SequenceDataset;
         terminals = dataset["terminals"]
         realterminals = dataset["realterminals"]
 
+        @bp
         obs_mean, obs_std = mean(observations, dims=2)  , std(observations, dims=2, corrected=false)
         act_mean, act_std = mean(actions, dims=2), std(actions, dims=2, corrected=false)
         reward_mean, reward_std = mean(rewards), std(rewards, corrected=false)

@@ -39,18 +39,18 @@ if !isdir(args["savepath"])
     mkpath(args["savepath"])
 end
 
-# dataset = SequenceDataset(
-#     env_name;
-#     penalty=args["termination_penalty"], 
-#     sequence_length=sequence_length, 
-#     step=args["step"], 
-#     discount=args["discount"], 
-#     disable_goal=args["disable_goal"], 
-#     normalize_raw=args["normalize"], 
-#     normalize_reward=args["normalize_reward"],
-#     max_path_length=args["max_path_length"],
-#     atype=atype
-# )
+@enter dataset = SequenceDataset(
+    env_name;
+    penalty=args["termination_penalty"], 
+    sequence_length=sequence_length, 
+    step=args["step"], 
+    discount=args["discount"], 
+    disable_goal=args["disable_goal"], 
+    normalize_raw=args["normalize"], 
+    normalize_reward=args["normalize_reward"],
+    max_path_length=args["max_path_length"],
+    atype=atype
+)
 
 
 @testset "Q-Learning dataset with timeouts" begin
