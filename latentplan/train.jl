@@ -25,7 +25,6 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
 
     losses = []
     @showprogress "Epoch $n_epochs" for (it, batch) in enumerate(loader)
-        GC.gc(true)
         y = batch[end-1]
         n_tokens += prod(size(y))
 
@@ -50,11 +49,11 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
         end
 
         # forward the model
-        total_loss, recon_loss, commit_loss = @diff losssum(model(batch...))
+        total_loss, recon_loss, commit_loss = losssum(model(batch...))
         # push!(losses, value(total_loss))
-        for p in paramlist(model)
-            update!(p, grad(total_loss, p))
-        end
+        # for p in paramlist(model)
+        #     update!(p, grad(total_loss, p))
+        # end
 
         if it % log_freq == 1
             summary = Dict(
@@ -75,6 +74,7 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
             )
             # wandb.log(summary, step=n_epochs * length(loader) + it - 1)
         end
+        GC.gc(true)
     end
 end
 
