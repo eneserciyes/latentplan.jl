@@ -98,7 +98,8 @@ end
 
     loader = DataLoader(dataset; shuffle=false, batch_size=args["batch_size"])
     batch1 = nothing; batch2 = nothing; batch3 = nothing
-    @showprogress "Iterating dataloader" for (it, batch) in enumerate(loader)
+    println("Iterating dataloader..")
+    for (it, batch) in enumerate(loader)
         if it==1
             batch1 = batch
         elseif it==1000
@@ -107,21 +108,22 @@ end
             batch3 = batch
         end
     end
+    println("Batches set")
 
     @test length(loader) == 3903
-    @test all(batch1[1] .≈ batch1_1)
-    @test all(batch1[2] .≈ batch1_2)
-    @test all(batch1[3] .≈ batch1_3)
-    @test all(batch1[4] .≈ batch1_4)
+    @test all(cputype(batch1[1]) .≈ batch1_1)
+    @test all(cputype(batch1[2]) .≈ batch1_2)
+    @test all(cputype(batch1[3]) .≈ batch1_3)
+    @test all(cputype(batch1[4]) .≈ batch1_4)
 
-    @test all(batch2[1] .≈ batch2_1)
-    @test all(batch2[2] .≈ batch2_2)
-    @test all(batch2[3] .≈ batch2_3)
-    @test all(batch2[4] .≈ batch2_4)
+    @test all(cputype(batch2[1]) .≈ batch2_1)
+    @test all(cputype(batch2[2]) .≈ batch2_2)
+    @test all(cputype(batch2[3]) .≈ batch2_3)
+    @test all(cputype(batch2[4]) .≈ batch2_4)
 
     @test size(batch3[1], 3) == 175
-    @test all(batch3[1] .≈ batch3_1)
-    @test all(batch3[2] .≈ batch3_2)
-    @test all(batch3[3] .≈ batch3_3)
-    @test all(batch3[4] .≈ batch3_4)
+    @test all(cputype(batch3[1]) .≈ batch3_1)
+    @test all(cputype(batch3[2]) .≈ batch3_2)
+    @test all(cputype(batch3[3]) .≈ batch3_3)
+    @test all(cputype(batch3[4]) .≈ batch3_4)
 end

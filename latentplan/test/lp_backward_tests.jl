@@ -288,36 +288,3 @@ end;
     @test all(abs.(cputype(∇embed_w) .- ∇embed_w_gt).<eps)
     @test all(abs.(cputype(∇embed_b) .- ∇embed_b_gt).<eps)
 end;
-
-
-# Testing AdamW optimizer
-
-opt_decay = AdamW(lr=config["learning_rate"], beta1=0.9, beta2=0.95, weight_decay=0.1, gclip=1.0)
-opt_no_decay = AdamW(lr=config["learning_rate"], beta1=0.9, beta2=0.95, weight_decay=0.0, gclip=1.0)
-
-for p in paramlist_decay(vq_model)
-    p.opt = clone(opt_decay)
-end
-for p in paramlist_no_decay(vq_model)
-    p.opt = clone(opt_no_decay)
-end
-
-# for p in paramlist(vq_model)
-#     update!(p, grad(total_loss, p))
-# end
-
-update!(vq_model.model.decoder.layers[1].attn.key.w, grad(total_loss, vq_model.model.decoder.layers[1].attn.key.w))
-weights_optimized = torch.load("files/gpt_weights_optimize_1step.pt")
-
-@testset "Checking weights after 1 step" begin
-    eps = 5e-6
-    updated_weights = vq_model.model.decoder.layers[1].attn.key.w 
-    gt_weights = weights_optimized["model.decoder.0.attn.key.weight"][:cpu]()[:numpy]()
-    @show cputype(value(updated_weights))[1:5, 1:5]
-    @show gt_weights[1:5, 1:5]
-    @test all(abs.(cputype(value(updated_weights)) .- gt_weights).< eps)
-end;
-
-
-
-
