@@ -20,22 +20,12 @@ include("setup.jl")
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4]), prediction[2], prediction[4]
 
 function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_epochs=1, log_freq=100)
-    # set optimizers
-    opt_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=config["weight_decay"], gclip=config["grad_norm_clip"])
-    opt_no_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=0.0, gclip=config["grad_norm_clip"])
-
-    for p in paramlist_decay(model)
-        p.opt = clone(opt_decay)
-    end
-    for p in paramlist_no_decay(model)
-        p.opt = clone(opt_no_decay)
-    end
-
     n_tokens = 0
     loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
 
     losses = []
-    for (it, batch) in enumerate(loader)
+    @showprogress "Epoch $n_epochs" for (it, batch) in enumerate(loader)
+        GC.gc(true)
         y = batch[end-1]
         n_tokens += prod(size(y))
 
@@ -61,7 +51,7 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
 
         # forward the model
         total_loss, recon_loss, commit_loss = @diff losssum(model(batch...))
-        push!(losses, value(total_loss))
+        # push!(losses, value(total_loss))
         for p in paramlist(model)
             update!(p, grad(total_loss, p))
         end
@@ -74,7 +64,7 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
             )
             println(
                 @sprintf(
-                    "[ utils/training ] epoch %d [ %d / %d ], train reconstruction loss %.5f | train commit loss %.5f | lr %.3f",
+                    "[ utils/training ] epoch %d [ %d / %d ] train reconstruction loss %.5f | train commit loss %.5f | lr %.5f",
                     n_epochs,
                     it-1,
                     length(loader),
@@ -83,7 +73,7 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
                     lr,
                 )
             )
-            wandb.log(summary, step=n_epochs * length(loader) + it - 1)
+            # wandb.log(summary, step=n_epochs * length(loader) + it - 1)
         end
     end
 end
@@ -199,17 +189,27 @@ trainer_config = Dict(
 #######################
 ###### main loop ######
 #######################
+# set optimizers
+opt_decay = AdamW(lr=trainer_config["learning_rate"], beta1=trainer_config["betas"][1], beta2=trainer_config["betas"][2], weight_decay=trainer_config["weight_decay"], gclip=trainer_config["grad_norm_clip"])
+opt_no_decay = AdamW(lr=trainer_config["learning_rate"], beta1=trainer_config["betas"][1], beta2=trainer_config["betas"][2], weight_decay=0.0, gclip=trainer_config["grad_norm_clip"])
+
+for p in paramlist_decay(model)
+    p.opt = clone(opt_decay)
+end
+for p in paramlist_no_decay(model)
+    p.opt = clone(opt_no_decay)
+end
 
 ## scale number of epochs to keep number of updates constant
 n_epochs = Int(floor((1e6 / length(dataset)) * args["n_epochs_ref"]))
 save_freq = Int(floor(n_epochs / args["n_saves"]))
-wandb.init(project="latentplan.jl", config=args, tags=[args["exp_name"], args["tag"]])
-
+# wandb.init(project="latentplan.jl", config=args, tags=[args["exp_name"], args["tag"]])
 for epoch in 1:n_epochs
-    @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
+    @printf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
     vq_train(trainer_config, model, dataset, n_epochs=epoch)
 
     save_epoch = (epoch + 1) ÷ save_freq * save_freq
     statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
-    Knet.save(model, joinpath(args["savepath"], "state_$save_epoch.jld2"))
+    Knet.save(statepath, "model", model)
+    println("Saved model to $statepath")
 end
