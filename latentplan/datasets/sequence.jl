@@ -14,7 +14,7 @@ function squeeze(A::AbstractArray)
 end
 
 function segment(observations, terminals, max_path_length)
-    @assert size(observations, 2) == size(terminals, 2)
+    @assert size(observations, 2) == size(terminals, 1)
     observation_dim = size(observations, 1)
     trajectories = [[]]
 
@@ -48,7 +48,7 @@ function compute_values(rewards_segmented, discounts, max_path_length)
     values_segmented = zeros(Float32, size(rewards_segmented)...)
     @showprogress "Calculating values" for t in 1:max_path_length
         V = sum(rewards_segmented[:, t+1:end, :] .* discounts[:, 1:end-t], dims=2)
-        values_segmented[:, t] = V
+        values_segmented[:, t, :] = V
     end
     return values_segmented
 end
@@ -136,8 +136,8 @@ struct SequenceDataset;
 
         discounts = reshape(discount .^ collect(0:max_path_length-1), 1, :)
         values_segmented = compute_values(rewards_segmented, discounts, max_path_length)
-
-        values_raw = reshape(dropdims_n(values_segmented, dims=tuple(ndims(values_segmented))), :)
+        
+        values_raw = reshape(dropdims_n(values_segmented, dims=tuple(1)), :)
         values_mask = .!reshape(termination_flags, :)
         values_raw = reshape(values_raw[values_mask], 1, :)
 

@@ -75,8 +75,8 @@ function qlearning_dataset_with_timeouts(env; dataset=nothing, terminate_on_end:
         "actions"=>reduce(hcat, action_),
         "next_observations"=>reduce(hcat, next_obs_),
         "rewards"=> reshape(reward_, 1, :),
-        "terminals"=>reshape(done_, 1, :),
-        "realterminals"=>reshape(realdone_, 1, :),
+        "terminals"=>done_,
+        "realterminals"=>realdone_,
     )
 end
 
