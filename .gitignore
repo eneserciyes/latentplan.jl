@@ -1,4 +1,5 @@
 .ipynb_checkpoints/
+wandb/
 gpt_weights.pt
 gpt_weights_optimize_1step.pt
 obs.npy

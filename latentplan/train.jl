@@ -3,7 +3,9 @@ using Statistics: mean
 using Printf
 using Knet
 using Debugger: @enter, @bp, @run
+using PyCall: pyimport
 
+wandb = pyimport("wandb")
 # only while debugging
 # using JuliaInterpreter
 # using MethodAnalysis
@@ -33,57 +35,56 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
     n_tokens = 0
     loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
 
-    for epoch in 1:n_epochs
-        losses = []
-        for (it, batch) in enumerate(loader)
-            y = batch[end-1]
-            n_tokens += prod(size(y))
+    losses = []
+    for (it, batch) in enumerate(loader)
+        y = batch[end-1]
+        n_tokens += prod(size(y))
 
-            if n_tokens < config["warmup_tokens"]
-                # linear warmup
-                lr_mult = float(n_tokens) / float(max(1, config["warmup_tokens"]))
-            else
-                # cosine learning rate decay
-                progress = float(n_tokens - config["warmup_tokens"]) / float(
-                    max(1, config["final_tokens"] - config["warmup_tokens"])
-                )
-                lr_mult = max(0.1, 0.5 * (1.0 + cos(pi * progress)))
-            end
+        if n_tokens < config["warmup_tokens"]
+            # linear warmup
+            lr_mult = float(n_tokens) / float(max(1, config["warmup_tokens"]))
+        else
+            # cosine learning rate decay
+            progress = float(n_tokens - config["warmup_tokens"]) / float(
+                max(1, config["final_tokens"] - config["warmup_tokens"])
+            )
+            lr_mult = max(0.1, 0.5 * (1.0 + cos(pi * progress)))
+        end
 
-            if config["lr_decay"]
-                lr = config["learning_rate"] * lr_mult
-                for p in paramlist(model)
-                    p.opt.lr = lr
-                end
-            else
-                lr = config["learning_rate"]
-            end
-
-            # forward the model
-            total_loss, recon_loss, commit_loss = @diff losssum(model(batch...))
-            push!(losses, value(total_loss))
+        if config["lr_decay"]
+            lr = config["learning_rate"] * lr_mult
             for p in paramlist(model)
-                update!(p, grad(total_loss, p))
+                p.opt.lr = lr
             end
+        else
+            lr = config["learning_rate"]
+        end
 
-            if it % log_freq == 0
-                summary = Dict(
-                    "reconstruction_loss" => value(recon_loss),
-                    "commit_loss" => value(commit_loss),
-                    "lr" => lr
+        # forward the model
+        total_loss, recon_loss, commit_loss = @diff losssum(model(batch...))
+        push!(losses, value(total_loss))
+        for p in paramlist(model)
+            update!(p, grad(total_loss, p))
+        end
+
+        if it % log_freq == 0
+            summary = Dict(
+                "reconstruction_loss" => value(recon_loss),
+                "commit_loss" => value(commit_loss),
+                "lr" => lr
+            )
+            println(
+                @sprintf(
+                    "[ utils/training ] epoch %d [ %d / %d ], train reconstruction loss %.5f | train commit loss %.5f | lr %.3f",
+                    epoch,
+                    it,
+                    length(loader),
+                    value(recon_loss),
+                    value(commit_loss),
+                    lr,
                 )
-                println(
-                    @sprintf(
-                        "[ utils/training ] epoch %d [ %d / %d ], train reconstruction loss %.5f | train commit loss %.5f | lr %.3f",
-                        epoch,
-                        it,
-                        length(loader),
-                        value(recon_loss),
-                        value(commit_loss),
-                        lr,
-                    )
-                )
-            end
+            )
+            wandb.log(summary, step=n_epochs * length(loader) + it - 1)
         end
     end
 end
@@ -199,11 +200,11 @@ trainer_config = Dict(
 ## scale number of epochs to keep number of updates constant
 n_epochs = Int(floor(1e6 / length(dataset) * args["n_epochs_ref"]))
 save_freq = Int(floor(n_epochs / args["n_saves"]))
-#TODO: wandb init
+wandb.init(project="latentplan.jl", config=args, tags=[args["exp_name"], args["tag"]])
 
 for epoch in 1:n_epochs
     @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
-    vq_train(trainer_config, model, dataset)
+    vq_train(trainer_config, model, dataset, epoch)
 
     save_epoch = (epoch + 1) ÷ save_freq * save_freq
     statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
