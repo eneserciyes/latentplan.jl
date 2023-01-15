@@ -1,3 +1,5 @@
 .ipynb_checkpoints/
 gpt_weights.pt
 gpt_weights_optimize_1step.pt
+obs.npy
+next_obs.npy
