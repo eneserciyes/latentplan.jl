@@ -43,7 +43,7 @@ function make_dir(args)
         catch e
             println(args["savepath"], " already exists. Proceeding...")
         end
-        println("Made directory", args["savepath"])
+        println("Made directory ", args["savepath"])
     end
 end
 
@@ -52,15 +52,15 @@ function read_config(args::Dict{String, Any}, experiment::Union{String, Nothing}
     dataset = replace(args["dataset"], "-" => "_")
     config = args["config"]
     println("[ utils/setup ] Reading config: $config:$dataset")
-    # if hasproperty(VQVAEConfig, Symbol(dataset))
-    #     params = getproperty(config_module, Symbol(dataset))[experiment]
-    #     print("Overriding base configs with $dataset configs.")
-    # else
-    if experiment == "train"
-        params = VQVAEConfig.Train()
-    elseif experiment == "plan"
-        params = VQVAEConfig.Plan()
+    if hasproperty(VQVAEConfig, Symbol(dataset))
+        params = getproperty(VQVAEConfig, Symbol(dataset))[experiment]
+        println("Overriding base configs with $dataset configs.")
+    else
+        if experiment == "train"
+            params = VQVAEConfig.Train()
+        elseif experiment == "plan"
+            params = VQVAEConfig.Plan()
+        end
     end
-    # end
     return params
 end

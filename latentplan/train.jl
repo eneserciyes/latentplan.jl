@@ -16,7 +16,6 @@ wandb = pyimport("wandb")
 
 include("LPCore.jl")
 include("setup.jl")
-using .LPCore
 
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4]), prediction[2], prediction[4]
 
@@ -67,7 +66,7 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
             update!(p, grad(total_loss, p))
         end
 
-        if it % log_freq == 0
+        if it % log_freq == 1
             summary = Dict(
                 "reconstruction_loss" => value(recon_loss),
                 "commit_loss" => value(commit_loss),
@@ -76,8 +75,8 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
             println(
                 @sprintf(
                     "[ utils/training ] epoch %d [ %d / %d ], train reconstruction loss %.5f | train commit loss %.5f | lr %.3f",
-                    epoch,
-                    it,
+                    n_epochs,
+                    it-1,
                     length(loader),
                     value(recon_loss),
                     value(commit_loss),
@@ -106,6 +105,10 @@ s = ArgParseSettings()
         help = "relative jl file path with configurations"
         arg_type = String
         default = "../config/vqvae.jl"
+    "--tag"
+        help = "tag for the experiment"
+        arg_type = String
+        default = "debug"
 end
 
 #######################
@@ -198,13 +201,13 @@ trainer_config = Dict(
 #######################
 
 ## scale number of epochs to keep number of updates constant
-n_epochs = Int(floor(1e6 / length(dataset) * args["n_epochs_ref"]))
+n_epochs = Int(floor((1e6 / length(dataset)) * args["n_epochs_ref"]))
 save_freq = Int(floor(n_epochs / args["n_saves"]))
 wandb.init(project="latentplan.jl", config=args, tags=[args["exp_name"], args["tag"]])
 
 for epoch in 1:n_epochs
     @printf("\nEpoch: %d / %d | %s | %s", epoch, n_epochs, env_name, args["exp_name"])
-    vq_train(trainer_config, model, dataset, epoch)
+    vq_train(trainer_config, model, dataset, n_epochs=epoch)
 
     save_epoch = (epoch + 1) ÷ save_freq * save_freq
     statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")

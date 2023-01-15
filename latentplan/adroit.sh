@@ -4,7 +4,7 @@ datasets=(pen-cloned-v0)
 foo() {
   local round=$1
   for data in ${datasets[@]}; do
-    julia --project=. train.jl --dataset $data --exp_name $name-$round --tag development --seed $round
+    julia --project=.. train.jl --dataset $data --exp_name $name-$round --tag development --seed $round
     # julia --project=. trainprior.jl --dataset $data --exp_name $name-$round
     # for i in {1..20};
     # do
@@ -14,5 +14,5 @@ foo() {
 }
 
 for round in {1..1}; do
-  foo "$round" &
+  foo "$round"
 done

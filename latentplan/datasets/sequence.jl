@@ -178,7 +178,7 @@ struct SequenceDataset;
 
         ## pad trajectories
         dim_joined, _, n_trajectories = size(joined_segmented)
-        joined_segmented = atype(cat(joined_segmented, zeros(Float32, dim_joined, sequence_length-1, n_trajectories), dims=2))
+        joined_segmented = cat(joined_segmented, zeros(Float32, dim_joined, sequence_length-1, n_trajectories), dims=2)
         termination_flags = cat(termination_flags, ones(Bool, sequence_length-1, n_trajectories), dims=1)
 
 
@@ -241,8 +241,8 @@ function get_item(s::SequenceDataset, idx)
     mask = ones(Bool, size(joined))
     mask[:, traj_inds .> s.max_path_length - s.step + 1] .= 0
     terminal = (.~cumprod(.~(reshape(s.termination_flags[start_ind:s.step:end_ind-1, path_ind], 1, :, 1)), dims=1))[:,:,1]
-    X = joined[:, 1:end-1]
-    Y = joined[:, 2:end]
+    X = convert(s.atype, joined[:, 1:end-1])
+    Y = convert(s.atype, joined[:, 2:end])
     mask = convert(s.atype, mask[:,1:end-1])
     terminal = convert(s.atype, terminal[:, 1:end-1])
     return X, Y, mask, terminal
