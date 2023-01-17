@@ -108,7 +108,6 @@ struct SequenceDataset;
         terminals = dataset["terminals"]
         realterminals = dataset["realterminals"]
 
-        @bp
         obs_mean, obs_std = mean(observations, dims=2)  , std(observations, dims=2, corrected=false)
         act_mean, act_std = mean(actions, dims=2), std(actions, dims=2, corrected=false)
         reward_mean, reward_std = mean(rewards), std(rewards, corrected=false)
@@ -241,10 +240,10 @@ function get_item(s::SequenceDataset, idx)
     mask = ones(Bool, size(joined))
     mask[:, traj_inds .> s.max_path_length - s.step + 1] .= 0
     terminal = (.~cumprod(.~(reshape(s.termination_flags[start_ind:s.step:end_ind-1, path_ind], 1, :, 1)), dims=1))[:,:,1]
-    X = convert(s.atype, joined[:, 1:end-1])
-    Y = convert(s.atype, joined[:, 2:end])
-    mask = convert(s.atype, mask[:,1:end-1])
-    terminal = convert(s.atype, terminal[:, 1:end-1])
+    X = joined[:, 1:end-1]
+    Y = joined[:, 2:end]
+    mask = mask[:,1:end-1]
+    terminal = terminal[:, 1:end-1]
     return X, Y, mask, terminal
 end
 

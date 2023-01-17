@@ -20,26 +20,14 @@ include("setup.jl")
 losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4]), prediction[2], prediction[4]
 
 function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_epochs=1, log_freq=100)
-    n_tokens = 0
     loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
-
     losses = []
-    @showprogress "Epoch $n_epochs" for (it, batch) in enumerate(loader)
-        y = batch[end-1]
-        n_tokens += prod(size(y))
-
-        if n_tokens < config["warmup_tokens"]
-            # linear warmup
-            lr_mult = float(n_tokens) / float(max(1, config["warmup_tokens"]))
-        else
-            # cosine learning rate decay
-            progress = float(n_tokens - config["warmup_tokens"]) / float(
-                max(1, config["final_tokens"] - config["warmup_tokens"])
-            )
-            lr_mult = max(0.1, 0.5 * (1.0 + cos(pi * progress)))
-        end
+    for (it, batch) in enumerate(loader)
+        X, Y, mask, terminal = batch
+        X, Y, mask, terminal = atype(X), atype(Y), atype(mask), atype(terminal)
 
         if config["lr_decay"]
+            lr_mult=1.0f0
             lr = config["learning_rate"] * lr_mult
             for p in paramlist(model)
                 p.opt.lr = lr
@@ -49,31 +37,38 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
         end
 
         # forward the model
-        total_loss, recon_loss, commit_loss = losssum(model(batch...))
+        total_loss, recon_loss, commit_loss = losssum(model(X,Y,mask,terminal))
+        println("diff complete")
         # push!(losses, value(total_loss))
         # for p in paramlist(model)
         #     update!(p, grad(total_loss, p))
         # end
 
-        if it % log_freq == 1
-            summary = Dict(
-                "reconstruction_loss" => value(recon_loss),
-                "commit_loss" => value(commit_loss),
-                "lr" => lr
-            )
-            println(
-                @sprintf(
-                    "[ utils/training ] epoch %d [ %d / %d ] train reconstruction loss %.5f | train commit loss %.5f | lr %.5f",
-                    n_epochs,
-                    it-1,
-                    length(loader),
-                    value(recon_loss),
-                    value(commit_loss),
-                    lr,
-                )
-            )
-            # wandb.log(summary, step=n_epochs * length(loader) + it - 1)
-        end
+        # if it % log_freq == 1
+        #     summary = Dict(
+        #         "reconstruction_loss" => value(recon_loss),
+        #         "commit_loss" => value(commit_loss),
+        #         "lr" => lr
+        #     )
+        #     println(
+        #         @sprintf(
+        #             "[ utils/training ] epoch %d [ %d / %d ] train reconstruction loss %.5f | train commit loss %.5f | lr %.5f",
+        #             n_epochs,
+        #             it-1,
+        #             length(loader),
+        #             value(recon_loss),
+        #             value(commit_loss),
+        #             lr,
+        #         )
+        #     )
+        #     # wandb.log(summary, step=n_epochs * length(loader) + it - 1)
+        # end
+        total_loss = nothing
+        recon_loss = nothing
+        commit_loss = nothing
+        X, Y, terminal, mask = nothing, nothing, nothing, nothing
+
+        println(total_loss, recon_loss, commit_loss)
         GC.gc(true)
     end
 end
