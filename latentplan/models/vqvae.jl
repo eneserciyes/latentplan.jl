@@ -41,7 +41,7 @@ function vq_st_codebook_backprop(codebook, output, grad_output)
 end
 
 # gradient definition for straight through estimation
-@primitive vq_st(inputs, codebook),dy,y dy[1] vq_st_codebook_backprop(codebook, y, dy)
+@primitive vq_st(inputs, codebook),dy,y dy[1] nothing
 
 #########################
 # VQEmbedding
