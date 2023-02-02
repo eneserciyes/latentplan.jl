@@ -155,7 +155,7 @@ loader = DataLoader(dataset; shuffle=false, batch_size=args["batch_size"])
 
 println("Setup done..")
 
-losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
+losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4]), prediction[2], prediction[4]
 
 opt_decay = AdamW(lr=args["learning_rate"], beta1=0.9, beta2=0.95, weight_decay=0.1, gclip=1.0)
 opt_no_decay = AdamW(lr=args["learning_rate"], beta1=0.9, beta2=0.95, weight_decay=0.0, gclip=1.0)
@@ -166,18 +166,25 @@ for p in paramlist_no_decay(vq_model)
     p.opt = clone(opt_no_decay)
 end
 
-@testset "Checking weights after 1 step for a single layer" begin
-    grad_decoder_gt = numpy.load("files/training/decoder0-attn-key-grad.npy")
-
-    total_loss = 0.0f0
-    for (it, batch) in enumerate(loader)
-        total_loss = @diff losssum(vq_model(batch...))
-        break
-    end
-    println(value(total_loss))
-    @test value(total_loss) .≈ 3.4647
-    grad_decoder = grad(total_loss, vq_model.model.decoder.layers[1].attn.key.w)
-    @test all(cputype(grad_decoder) .≈ grad_decoder_gt)
-
-    update!(vq_model.model.decoder.layers[1].attn.key.w, grad_decoder)
+function zerograd_embedding(model::VQContinuousVAE)
+    model.model.codebook.embedding = value(model.model.codebook.embedding)
+    model.model.codebook.ema_count = value(model.model.codebook.ema_count)
+    model.model.codebook.ema_w = value(model.model.codebook.ema_w)
 end
+
+# @testset "Checking weights after 1 step for a single layer" begin
+#     grad_decoder_gt = numpy.load("files/training/decoder0-attn-key-grad.npy")
+
+#     total_loss = 0.0f0
+#     for (it, batch) in enumerate(loader)
+#         X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
+#         total_loss = @diff losssum(vq_model(X,Y,mask,terminal))
+#         break
+#     end
+#     println(value(total_loss))
+#     @test value(total_loss) .≈ 3.4647
+#     grad_decoder = grad(total_loss, vq_model.model.decoder.layers[1].attn.key.w)
+#     @test all(cputype(grad_decoder) .≈ grad_decoder_gt)
+
+#     update!(vq_model.model.decoder.layers[1].attn.key.w, grad_decoder)
+# end

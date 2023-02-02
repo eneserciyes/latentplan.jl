@@ -10,7 +10,7 @@ wandb = pyimport("wandb")
 # using JuliaInterpreter
 # using MethodAnalysis
 # visit(Base) do item
-#     isa(item, Module) && push!(JuliaInterpreter.compiled_modules, item)
+#     isa(item, Module) && push!(JuliaInterpretr.compiled_modules, item)
 #     true
 # end
 
@@ -43,12 +43,12 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
 
         # forward the model
         total_loss, recon_loss, commit_loss = @diff losssum(model(X,Y,mask,terminal))
-        println("diff complete $it")
 
         push!(losses, value(total_loss))
         for p in paramlist(model)
             update!(p, grad(total_loss, p))
         end
+        println("Loss:", value(total_loss))
 
         if it % log_freq == 1
             summary = Dict(
@@ -186,8 +186,8 @@ trainer_config = Dict(
 ###### main loop ######
 #######################
 # set optimizers
-opt_decay = AdamW(lr=trainer_config["learning_rate"], beta1=trainer_config["betas"][1], beta2=trainer_config["betas"][2], weight_decay=trainer_config["weight_decay"], gclip=trainer_config["grad_norm_clip"])
-opt_no_decay = AdamW(lr=trainer_config["learning_rate"], beta1=trainer_config["betas"][1], beta2=trainer_config["betas"][2], weight_decay=0.0, gclip=trainer_config["grad_norm_clip"])
+opt_decay = AdamW(lr=trainer_config["learning_rate"], beta1=trainer_config["betas"][1], beta2=trainer_config["betas"][2], gclip=trainer_config["grad_norm_clip"])
+opt_no_decay = AdamW(lr=trainer_config["learning_rate"], beta1=trainer_config["betas"][1], beta2=trainer_config["betas"][2], gclip=trainer_config["grad_norm_clip"])
 
 for p in paramlist_decay(model)
     p.opt = clone(opt_decay)

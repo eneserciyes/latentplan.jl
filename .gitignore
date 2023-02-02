@@ -2,5 +2,6 @@
 wandb/
 gpt_weights.pt
 gpt_weights_optimize_1step.pt
+gpt_3layer.pt
 obs.npy
 next_obs.npy

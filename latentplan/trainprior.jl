@@ -22,7 +22,7 @@ function prior_train(config, representation::VQContinuousVAE, model::Transformer
     end
 
     n_tokens = 0
-    loader = DataLoader(dataset; shuffle=false, batch_size=config["batch_size"])
+    loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
 
     for epoch in 1:n_epochs
         losses = []
