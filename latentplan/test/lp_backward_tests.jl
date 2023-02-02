@@ -146,9 +146,9 @@ println("Setup done..")
 
     eps = 5e-6
     @test all(abs.(cputype(reconstructed .- permutedims(reconstructed_gt, (3, 2, 1))).<eps))
-    @test all(abs.(cputype(reconstruction_loss .- reconstruction_loss_gt).<eps))
+    @test all(abs.(reconstruction_loss .- reconstruction_loss_gt.<eps))
     @test loss_vq == loss_vq_gt
-    @test all(abs.(cputype(loss_commit .- loss_commit_gt).<eps))
+    @test all(abs.(loss_commit .- loss_commit_gt.<eps))
 end
 
 # Testing straight through gradient
