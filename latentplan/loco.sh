@@ -1,3 +1,5 @@
+#!/usr/bin/bash
+
 name=T-1
 datasets=(hopper-medium-replay-v2)
 

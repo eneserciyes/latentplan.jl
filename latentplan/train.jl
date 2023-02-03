@@ -67,7 +67,7 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
         #     # wandb.log(summary, step=n_epochs * length(loader) + it - 1)
         # end
         zerograd_embedding(model)
-        GC.gc(true)
+        # GC.gc(true)
     end
 end
 
@@ -197,17 +197,28 @@ save_freq = Int(floor(n_epochs / args["n_saves"]))
 # wandb.init(project="latentplan.jl", config=args, tags=[args["exp_name"], args["tag"]])
 for epoch in 1:n_epochs
     @printf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
-    loader = DataLoader(dataset; shuffle=false, batch_size=trainer_config["batch_size"])
+    loader = DataLoader(dataset; shuffle=true, batch_size=trainer_config["batch_size"])
     for (it, batch) in enumerate(loader)
         X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
         # forward the model
         total_loss = @diff losssum(model(X, Y, mask, terminal))
-        println("Loss:", value(total_loss))
+        # println("Loss:", value(total_loss))
         for p in paramlist(model)
             update!(p, grad(total_loss, p))
         end
         zerograd_embedding(model)
-        GC.gc(true)
+        if it % 100 == 1
+            println(
+                @sprintf(
+                    "[ utils/training ] epoch %d [ %d / %d ] train loss %.5f",
+                    n_epochs,
+                    it-1,
+                    length(loader),
+                    value(total_loss),
+                )
+            )
+        end
+        # GC.gc(true)
     end
 
     save_epoch = (epoch + 1) ÷ save_freq * save_freq
