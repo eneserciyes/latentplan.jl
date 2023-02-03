@@ -89,6 +89,7 @@ function (l::LayerNorm)(x, o...)
 end
 
 function softmax(w; dims)
+    w = w .- maximum(w, dims=dims)
     probs = exp.(w)
     return probs ./ sum(probs, dims=dims)
 end
