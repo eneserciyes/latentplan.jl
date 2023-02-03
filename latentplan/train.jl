@@ -5,7 +5,7 @@ using Knet
 using Debugger: @enter, @bp, @run
 using PyCall: pyimport
 
-wandb = pyimport("wandb")
+# wandb = pyimport("wandb")
 # only while debugging
 # using JuliaInterpreter
 # using MethodAnalysis
@@ -17,7 +17,7 @@ wandb = pyimport("wandb")
 include("LPCore.jl")
 include("setup.jl")
 
-losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4]), prediction[2], prediction[4]
+losssum(prediction) = mean(prediction[2] + prediction[3] + prediction[4])
 
 function zerograd_embedding(model::VQContinuousVAE)
     model.model.codebook.embedding = value(model.model.codebook.embedding)
@@ -26,13 +26,13 @@ function zerograd_embedding(model::VQContinuousVAE)
 end
 
 function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_epochs=1, log_freq=100)
-    loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
+    loader = DataLoader(dataset; shuffle=false, batch_size=config["batch_size"])
     losses = []
     for (it, batch) in enumerate(loader)
         X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
 
         if config["lr_decay"]
-            lr_mult=1.0f0
+            lr_mult = 1.0f0
             lr = config["learning_rate"] * lr_mult
             for p in paramlist(model)
                 p.opt.lr = lr
@@ -42,33 +42,30 @@ function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_ep
         end
 
         # forward the model
-        total_loss, recon_loss, commit_loss = @diff losssum(model(X,Y,mask,terminal))
-
-        push!(losses, value(total_loss))
+        total_loss = @diff losssum(model(X, Y, mask, terminal))
+        println("Loss:", value(total_loss))
         for p in paramlist(model)
             update!(p, grad(total_loss, p))
         end
-        println("Loss:", value(total_loss))
-
-        if it % log_freq == 1
-            summary = Dict(
-                "reconstruction_loss" => value(recon_loss),
-                "commit_loss" => value(commit_loss),
-                "lr" => lr
-            )
-            println(
-                @sprintf(
-                    "[ utils/training ] epoch %d [ %d / %d ] train reconstruction loss %.5f | train commit loss %.5f | lr %.5f",
-                    n_epochs,
-                    it-1,
-                    length(loader),
-                    value(recon_loss),
-                    value(commit_loss),
-                    lr,
-                )
-            )
-            # wandb.log(summary, step=n_epochs * length(loader) + it - 1)
-        end
+        # if it % log_freq == 1
+        #     summary = Dict(
+        #         "reconstruction_loss" => value(recon_loss),
+        #         "commit_loss" => value(commit_loss),
+        #         "lr" => lr
+        #     )
+        #     println(
+        #         @sprintf(
+        #             "[ utils/training ] epoch %d [ %d / %d ] train reconstruction loss %.5f | train commit loss %.5f | lr %.5f",
+        #             n_epochs,
+        #             it-1,
+        #             length(loader),
+        #             value(recon_loss),
+        #             value(commit_loss),
+        #             lr,
+        #         )
+        #     )
+        #     # wandb.log(summary, step=n_epochs * length(loader) + it - 1)
+        # end
         zerograd_embedding(model)
         GC.gc(true)
     end
@@ -77,24 +74,24 @@ end
 s = ArgParseSettings()
 @add_arg_table! s begin
     "--dataset"
-        help = "which environment to use"
-        arg_type = String
-        default = "halfcheetah-medium-expert-v2"
+    help = "which environment to use"
+    arg_type = String
+    default = "halfcheetah-medium-expert-v2"
     "--exp_name"
-        help = "name of the experiment"
-        arg_type = String
-        default = "debug"
+    help = "name of the experiment"
+    arg_type = String
+    default = "debug"
     "--seed"
-        help = "seed"
-        default = 42
+    help = "seed"
+    default = 42
     "--config"
-        help = "relative jl file path with configurations"
-        arg_type = String
-        default = "../config/vqvae.jl"
+    help = "relative jl file path with configurations"
+    arg_type = String
+    default = "../config/vqvae.jl"
     "--tag"
-        help = "tag for the experiment"
-        arg_type = String
-        default = "debug"
+    help = "tag for the experiment"
+    arg_type = String
+    default = "debug"
 end
 
 #######################
@@ -120,12 +117,12 @@ end
 
 dataset = SequenceDataset(
     env_name;
-    penalty=args["termination_penalty"], 
-    sequence_length=sequence_length, 
-    step=args["step"], 
-    discount=args["discount"], 
-    disable_goal=args["disable_goal"], 
-    normalize_raw=args["normalize"], 
+    penalty=args["termination_penalty"],
+    sequence_length=sequence_length,
+    step=args["step"],
+    discount=args["discount"],
+    disable_goal=args["disable_goal"],
+    normalize_raw=args["normalize"],
     normalize_reward=args["normalize_reward"],
     max_path_length=args["max_path_length"],
     atype=atype
@@ -134,9 +131,9 @@ dataset = SequenceDataset(
 obs_dim = dataset.observation_dim
 act_dim = dataset.action_dim
 if args["task_type"] == "locomotion"
-    transition_dim = obs_dim+act_dim+3
+    transition_dim = obs_dim + act_dim + 3
 else
-    transition_dim = 128+act_dim+3
+    transition_dim = 128 + act_dim + 3
 end
 
 block_size = args["subsampled_sequence_length"] * transition_dim # total number of dimensionalities for a maximum length sequence (T)
@@ -162,12 +159,10 @@ model_config["vocab_size"] = args["N"]
 
 model = VQContinuousVAE(model_config)
 
-model.padding_vector = normalize_joined_single(dataset, atype(zeros(Float32, model.transition_dim-1)))
+model.padding_vector = normalize_joined_single(dataset, atype(zeros(Float32, model.transition_dim - 1)))
 
 warmup_tokens = length(dataset) * block_size
 final_tokens = 20 * warmup_tokens
-
-
 
 # training config
 trainer_config = Dict(
@@ -202,7 +197,18 @@ save_freq = Int(floor(n_epochs / args["n_saves"]))
 # wandb.init(project="latentplan.jl", config=args, tags=[args["exp_name"], args["tag"]])
 for epoch in 1:n_epochs
     @printf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
-    vq_train(trainer_config, model, dataset, n_epochs=epoch)
+    loader = DataLoader(dataset; shuffle=false, batch_size=trainer_config["batch_size"])
+    for (it, batch) in enumerate(loader)
+        X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
+        # forward the model
+        total_loss = @diff losssum(model(X, Y, mask, terminal))
+        println("Loss:", value(total_loss))
+        for p in paramlist(model)
+            update!(p, grad(total_loss, p))
+        end
+        zerograd_embedding(model)
+        GC.gc(true)
+    end
 
     save_epoch = (epoch + 1) ÷ save_freq * save_freq
     statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
