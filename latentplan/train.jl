@@ -195,9 +195,10 @@ end
 n_epochs = Int(floor((1e6 / length(dataset)) * args["n_epochs_ref"]))
 save_freq = Int(floor(n_epochs / args["n_saves"]))
 # wandb.init(project="latentplan.jl", config=args, tags=[args["exp_name"], args["tag"]])
-
+# load from checkpoint
+model = Knet.load(joinpath(args["savepath"], "state_0.jld2"), "model")
 for epoch in 1:n_epochs
-    logfile = open(joinpath(args["savepath"], "log.txt"), "a")
+    logfile = open(joinpath(args["savepath"], "log2.txt"), "a")
     
     epoch_message = @sprintf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
     println(epoch_message)
@@ -210,8 +211,10 @@ for epoch in 1:n_epochs
         total_loss = @diff losssum(model(X, Y, mask, terminal))
         println("Loss #", it, ": ", value(total_loss))
         println(logfile, "Loss #", it, ": ", value(total_loss))
+        prev_model = deepcopy(model)
         if isnan(value(total_loss))
             println(logfile, "NaN loss!!")
+            Knet.save(joinpath(args["savepath"], "nan_model_2.jld2"),"prev_model", prev_model, "model", model, "batch", batch)
             return
         end
         for p in paramlist(model)
