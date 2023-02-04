@@ -1,9 +1,9 @@
 using Knet
-using CUDA: CuArray, functional as cuda_available
+using CUDA: functional as cuda_available
 
 export atype
 if cuda_available()
-    atype=CuArray{Float32}
+    atype=KnetArray{Float32}
 else
     atype=Array{Float32}
 end

@@ -4,7 +4,6 @@ using Statistics: mean
 using AutoGrad
 using Distributions: Uniform
 using Debugger: @bp
-using CUDA: @allowscalar
 
 # VectorQuantization
 function vq(inputs::atype, codebook::atype)
@@ -97,7 +96,7 @@ function straight_through(v::VQEmbeddingMovingAverage, z_e_x, train::Bool=true)
     z_q_x, indices = vq_st(z_e_x, v.embedding)
     
     if train
-        encodings = @allowscalar begin one_hot(Float32, indices, K) end
+        encodings = one_hot(Float32, indices, K)
         v.ema_count = v.decay .* v.ema_count + (1 - v.decay) .* sum(encodings, dims=2)[:, 1]
         dw = reshape(z_e_x, (D, :)) * transpose(encodings) 
         v.ema_w = v.decay .* v.ema_w + (1 - v.decay) .* dw
@@ -264,9 +263,9 @@ function decode(v::VQStepWiseTransformer, latents, state)
     ## [obs_dim x T x B]
     joined_pred = v.predict(x)
     
-    sigm_mask = atype(ones(size(joined_pred)))
-    sigm_mask[end, :, :] .= 0.0f0
-    joined_pred = joined_pred .* sigm_mask .+ (1 .- sigm_mask) .* sigm.(joined_pred)
+    # sigm_mask = atype(ones(size(joined_pred)))
+    # sigm_mask[end, :, :] .= 0.0f0
+    # joined_pred = joined_pred .* sigm_mask .+ (1 .- sigm_mask) .* sigm.(joined_pred)
     
     state_mask = atype(zeros(size(joined_pred)))
     state_mask[1:v.observation_dim, :, :] .+= reshape(state, (:, 1, B))
@@ -406,7 +405,9 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
             joined_inputs[end, end, :], 
             pred_trajectory[end, end, :]
         )
-        cross_entropy = binary_cross_entropy(pred_terminals, clamp.(atype(terminals),0.0f0, 1.0f0))
+        # Knet.save("/home/mehmeteneserciyes/logs_julia/hopper-medium-replay-v2/T-1-42/bce_inputs.jld2", "pred_terminals", pred_terminals, "terminals",clip(atype(terminals),0.0f0, 1.0f0))
+        terminal_labels = reshape(clip(Array{Int}(terminals),0, 1), :)
+        cross_entropy = bce(reshape(pred_terminals, :), terminal_labels)
         reconstruction_loss = mean((mse .* mask .* terminal_mask)) + cross_entropy
         reconstruction_loss = reconstruction_loss + first_action_loss + sum_reward_loss + last_value_loss
 

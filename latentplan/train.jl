@@ -2,6 +2,7 @@ using ArgParse: ArgParseSettings, @add_arg_table!, parse_args
 using Statistics: mean
 using Printf
 using Knet
+using CUDA
 using Debugger: @enter, @bp, @run
 using PyCall: pyimport
 
@@ -194,27 +195,33 @@ end
 ## scale number of epochs to keep number of updates constant
 n_epochs = Int(floor((1e6 / length(dataset)) * args["n_epochs_ref"]))
 save_freq = Int(floor(n_epochs / args["n_saves"]))
+# load from checkpoint
+model = Knet.load(joinpath(args["savepath"], "state_0.jld2"), "model")
+println("Checkpoint loaded")
 
 for epoch in 1:n_epochs
-    logfile = open(joinpath(args["savepath"], "log2.txt"), "a")
+    logfile = open(joinpath(args["savepath"], "log3.txt"), "a")
     
     epoch_message = @sprintf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
     println(epoch_message)
     println(logfile, epoch_message)
+    prev_model=nothing
+    prev_batch=nothing
 
     loader = DataLoader(dataset; shuffle=true, batch_size=trainer_config["batch_size"])
     for (it, batch) in enumerate(loader)
+        prev_batch = batch
+        prev_model = deepcopy(model)
         X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
         # forward the model
         total_loss = @diff losssum(model(X, Y, mask, terminal))
         println("Loss #", it, ": ", value(total_loss))
         println(logfile, "Loss #", it, ": ", value(total_loss))
-        
         if isnan(value(total_loss))
             println(logfile, "NaN loss!!")
+            Knet.save(joinpath(args["savepath"], "nan_model_3.jld2"), "model", model, "prev_model", prev_model, "batch", batch, "prev_batch", prev_batch)
             return
         end
-
         for p in paramlist(model)
             update!(p, grad(total_loss, p))
         end
@@ -224,7 +231,7 @@ for epoch in 1:n_epochs
         if it % 100 == 1
             message = @sprintf(
                 "[ utils/training ] epoch %d [ %d / %d ] train loss %.5f",
-                n_epochs,
+                epoch,
                 it-1,
                 length(loader),
                 value(total_loss),

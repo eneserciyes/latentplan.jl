@@ -1,8 +1,11 @@
 export Chain, Linear, ReLU, GELU, Dropout, Embedding, one_hot, LayerNorm, softmax, mse_loss, MaxPool1d, paramlist, paramlist_decay, paramlist_no_decay
 
+import Base.Math.clamp 
+
 using Statistics: mean, var, std
 using Knet.Ops21: gelu
 using AutoGrad: @primitive
+using CUDA
 
 include("repeat_new.jl")
 include("dropdims_new.jl")
@@ -111,9 +114,13 @@ end
 
 @primitive mse_loss_detached(x, y; reduction="mean"),dy begin grad = dy .* 2.0f0 .* (x.-y); if reduction=="mean" grad ./ length(x) else grad end end nothing nothing
 
+function clip(x, lo, hi)
+    return max.(min.(hi,x),lo)
+end
+
 function binary_cross_entropy(probs,labels; reduction="mean")
-    log_pos = clamp.(log.(probs), -100.0f0, Float32(Inf))
-    log_neg = clamp.(log.(1 .- probs), -100.0f0, Float32(Inf))
+    log_pos = clip(log.(probs), -100.0f0, Float32(Inf))
+    log_neg = clip(log.(1 .- probs), -100.0f0, Float32(Inf))
     loss = -(labels .* log_pos .+ (1 .- labels) .* log_neg)
     if reduction == "mean"
         mean(loss)
