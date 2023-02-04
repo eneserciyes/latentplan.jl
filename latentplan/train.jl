@@ -76,7 +76,7 @@ s = ArgParseSettings()
     "--dataset"
     help = "which environment to use"
     arg_type = String
-    default = "halfcheetah-medium-expert-v2"
+    default = "hopper-medium-replay-v2"
     "--exp_name"
     help = "name of the experiment"
     arg_type = String
@@ -194,9 +194,7 @@ end
 ## scale number of epochs to keep number of updates constant
 n_epochs = Int(floor((1e6 / length(dataset)) * args["n_epochs_ref"]))
 save_freq = Int(floor(n_epochs / args["n_saves"]))
-# wandb.init(project="latentplan.jl", config=args, tags=[args["exp_name"], args["tag"]])
-# load from checkpoint
-# model = Knet.load(joinpath(args["savepath"], "state_0.jld2"), "model")
+
 for epoch in 1:n_epochs
     logfile = open(joinpath(args["savepath"], "log2.txt"), "a")
     
@@ -211,16 +209,18 @@ for epoch in 1:n_epochs
         total_loss = @diff losssum(model(X, Y, mask, terminal))
         println("Loss #", it, ": ", value(total_loss))
         println(logfile, "Loss #", it, ": ", value(total_loss))
-        # prev_model = deepcopy(model)
+        
         if isnan(value(total_loss))
             println(logfile, "NaN loss!!")
-            # Knet.save(joinpath(args["savepath"], "nan_model_2.jld2"),"prev_model", prev_model, "model", model, "batch", batch)
             return
         end
+
         for p in paramlist(model)
             update!(p, grad(total_loss, p))
         end
+
         zerograd_embedding(model)
+
         if it % 100 == 1
             message = @sprintf(
                 "[ utils/training ] epoch %d [ %d / %d ] train loss %.5f",
@@ -232,9 +232,9 @@ for epoch in 1:n_epochs
             println(message)
             println(logfile, message)
         end
-        # GC.gc(true)
     end
     close(logfile)
+    
     save_epoch = (epoch + 1) ÷ save_freq * save_freq
     statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
     Knet.save(statepath, "model", model)

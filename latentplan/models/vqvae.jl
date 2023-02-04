@@ -4,6 +4,7 @@ using Statistics: mean
 using AutoGrad
 using Distributions: Uniform
 using Debugger: @bp
+using CUDA: @allowscalar
 
 # VectorQuantization
 function vq(inputs::atype, codebook::atype)
@@ -96,7 +97,7 @@ function straight_through(v::VQEmbeddingMovingAverage, z_e_x, train::Bool=true)
     z_q_x, indices = vq_st(z_e_x, v.embedding)
     
     if train
-        encodings = one_hot(Float32, indices, K)
+        encodings = @allowscalar begin one_hot(Float32, indices, K) end
         v.ema_count = v.decay .* v.ema_count + (1 - v.decay) .* sum(encodings, dims=2)[:, 1]
         dw = reshape(z_e_x, (D, :)) * transpose(encodings) 
         v.ema_w = v.decay .* v.ema_w + (1 - v.decay) .* dw
@@ -405,7 +406,7 @@ function (v::VQContinuousVAE)(joined_inputs, targets=nothing, mask=nothing, term
             joined_inputs[end, end, :], 
             pred_trajectory[end, end, :]
         )
-        cross_entropy = binary_cross_entropy(pred_terminals, atype(clamp.(convert.(Float32, cputype(terminals)),0.0f0, 1.0f0)))
+        cross_entropy = binary_cross_entropy(pred_terminals, clamp.(atype(terminals),0.0f0, 1.0f0))
         reconstruction_loss = mean((mse .* mask .* terminal_mask)) + cross_entropy
         reconstruction_loss = reconstruction_loss + first_action_loss + sum_reward_loss + last_value_loss
 
