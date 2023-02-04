@@ -26,52 +26,6 @@ function zerograd_embedding(model::VQContinuousVAE)
     model.model.codebook.ema_w = value(model.model.codebook.ema_w)
 end
 
-function vq_train(config, model::VQContinuousVAE, dataset::SequenceDataset; n_epochs=1, log_freq=100)
-    loader = DataLoader(dataset; shuffle=false, batch_size=config["batch_size"])
-    losses = []
-    for (it, batch) in enumerate(loader)
-        X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
-
-        if config["lr_decay"]
-            lr_mult = 1.0f0
-            lr = config["learning_rate"] * lr_mult
-            for p in paramlist(model)
-                p.opt.lr = lr
-            end
-        else
-            lr = config["learning_rate"]
-        end
-
-        # forward the model
-        total_loss = @diff losssum(model(X, Y, mask, terminal))
-        println("Loss:", value(total_loss))
-        for p in paramlist(model)
-            update!(p, grad(total_loss, p))
-        end
-        # if it % log_freq == 1
-        #     summary = Dict(
-        #         "reconstruction_loss" => value(recon_loss),
-        #         "commit_loss" => value(commit_loss),
-        #         "lr" => lr
-        #     )
-        #     println(
-        #         @sprintf(
-        #             "[ utils/training ] epoch %d [ %d / %d ] train reconstruction loss %.5f | train commit loss %.5f | lr %.5f",
-        #             n_epochs,
-        #             it-1,
-        #             length(loader),
-        #             value(recon_loss),
-        #             value(commit_loss),
-        #             lr,
-        #         )
-        #     )
-        #     # wandb.log(summary, step=n_epochs * length(loader) + it - 1)
-        # end
-        zerograd_embedding(model)
-        # GC.gc(true)
-    end
-end
-
 s = ArgParseSettings()
 @add_arg_table! s begin
     "--dataset"
@@ -200,18 +154,14 @@ model = Knet.load(joinpath(args["savepath"], "state_0.jld2"), "model")
 println("Checkpoint loaded")
 
 for epoch in 1:n_epochs
-    logfile = open(joinpath(args["savepath"], "log3.txt"), "a")
+    logfile = open(joinpath(args["savepath"], "log4.txt"), "a")
     
     epoch_message = @sprintf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
     println(epoch_message)
     println(logfile, epoch_message)
-    prev_model=nothing
-    prev_batch=nothing
 
     loader = DataLoader(dataset; shuffle=true, batch_size=trainer_config["batch_size"])
     for (it, batch) in enumerate(loader)
-        prev_batch = batch
-        prev_model = deepcopy(model)
         X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
         # forward the model
         total_loss = @diff losssum(model(X, Y, mask, terminal))
@@ -219,7 +169,7 @@ for epoch in 1:n_epochs
         println(logfile, "Loss #", it, ": ", value(total_loss))
         if isnan(value(total_loss))
             println(logfile, "NaN loss!!")
-            Knet.save(joinpath(args["savepath"], "nan_model_3.jld2"), "model", model, "prev_model", prev_model, "batch", batch, "prev_batch", prev_batch)
+            # Knet.save(joinpath(args["savepath"], "nan_model_3.jld2"), "model", model, "prev_model", prev_model, "batch", batch, "prev_batch", prev_batch)
             return
         end
         for p in paramlist(model)
