@@ -112,7 +112,9 @@ end
 @primitive mse_loss_detached(x, y; reduction="mean"),dy begin grad = dy .* 2.0f0 .* (x.-y); if reduction=="mean" grad ./ length(x) else grad end end nothing nothing
 
 function binary_cross_entropy(probs,labels; reduction="mean")
-    loss = -(labels .* log.(probs) .+ (1 .- labels) .* log.(1 .- probs))
+    log_pos = atype(clamp.(cputype(log.(probs)), -100.0f0, Inf))
+    log_neg = atype(clamp.(cputype(log.(1 .- probs)), -100.0f0, Inf))
+    loss = -(labels .* log_pos .+ (1 .- labels) .* log_neg)
     if reduction == "mean"
         mean(loss)
     elseif reduction == "sum"
