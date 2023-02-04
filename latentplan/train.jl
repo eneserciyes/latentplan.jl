@@ -150,8 +150,8 @@ end
 n_epochs = Int(floor((1e6 / length(dataset)) * args["n_epochs_ref"]))
 save_freq = Int(floor(n_epochs / args["n_saves"]))
 # load from checkpoint
-model = Knet.load(joinpath(args["savepath"], "state_0.jld2"), "model")
-println("Checkpoint loaded")
+# model = Knet.load(joinpath(args["savepath"], "state_0.jld2"), "model")
+# println("Checkpoint loaded")
 
 for epoch in 1:n_epochs
     logfile = open(joinpath(args["savepath"], "log4.txt"), "a")

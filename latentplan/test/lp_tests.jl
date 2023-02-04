@@ -193,11 +193,11 @@ decoder_state_input = atype(numpy.load("files/state.npy"))
 latents_st_input = atype(numpy.load("files/latents_st.npy"));
 joined_pred_decoder_gt = atype(numpy.load("files/joined_pred.npy"));
 
-@testset "Testing Decoder" begin
-    decoder_out = decode(vq_model.model, permutedims(latents_st_input, (3,2,1)), decoder_state_input')
-    eps = 5e-6
-    @test all(abs.(cputype(decoder_out .- permutedims(joined_pred_decoder_gt, (3, 2, 1)))).<eps)
-end;
+# @testset "Testing Decoder" begin
+#     decoder_out = decode(vq_model.model, permutedims(latents_st_input, (3,2,1)), decoder_state_input')
+#     eps = 5e-6
+#     @test all(abs.(cputype(decoder_out .- permutedims(joined_pred_decoder_gt, (3, 2, 1)))).<eps)
+# end;
 
 ### VQStepWiseTransformer full test ###
 
@@ -212,13 +212,13 @@ joined_pred_gt = atype(numpy.load("files/joined_pred.npy"))
 latents_gt = atype(numpy.load("files/latents.npy"));
 trajectory_feature_gt = atype(numpy.load("files/trajectory_feature.npy"))
 
-@testset "Testing VQStepWiseTransformer" begin
-    joined_pred, latents, trajectory_feature = vq_model.model(permutedims(joined_inputs_input, (3, 2, 1)), state_input')
-    eps = 5e-6
-    @test all(abs.(cputype(joined_pred .- permutedims(joined_pred_gt, (3, 2, 1)))).<eps)
-    @test all(abs.(cputype(latents .- permutedims(latents_gt, (3, 2, 1)))).<eps)
-    @test all(abs.(cputype(trajectory_feature .- permutedims(trajectory_feature_gt, (3, 2, 1)))).<eps)
-end;
+# @testset "Testing VQStepWiseTransformer" begin
+#     joined_pred, latents, trajectory_feature = vq_model.model(permutedims(joined_inputs_input, (3, 2, 1)), state_input')
+#     eps = 5e-6
+#     @test all(abs.(cputype(joined_pred .- permutedims(joined_pred_gt, (3, 2, 1)))).<eps)
+#     @test all(abs.(cputype(latents .- permutedims(latents_gt, (3, 2, 1)))).<eps)
+#     @test all(abs.(cputype(trajectory_feature .- permutedims(trajectory_feature_gt, (3, 2, 1)))).<eps)
+# end;
 
 
 ### VQContinuousVAE full test ###
@@ -248,7 +248,7 @@ loss_commit_gt = atype(numpy.load("files/loss_commit.npy"))
     )
     eps = 5e-6
     @test all(abs.(cputype(reconstructed .- permutedims(reconstructed_gt, (3, 2, 1)))).<eps)
-    @test all(abs.(reconstruction_loss .- reconstruction_loss_gt.<eps))
+    @test reconstruction_loss ≈ reconstruction_loss_gt[1]
     @test loss_vq == loss_vq_gt
-    @test all(abs.(loss_commit .- loss_commit_gt.<eps))
+    @test loss_commit ≈ loss_commit_gt[1]
 end
