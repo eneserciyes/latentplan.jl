@@ -154,7 +154,7 @@ save_freq = Int(floor(n_epochs / args["n_saves"]))
 # println("Checkpoint loaded")
 
 for epoch in 1:n_epochs
-    logfile = open(joinpath(args["savepath"], "log4.txt"), "a")
+    logfile = open(joinpath(args["savepath"], "log-working.txt"), "a")
     
     epoch_message = @sprintf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
     println(epoch_message)
