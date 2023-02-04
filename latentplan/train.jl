@@ -195,48 +195,48 @@ end
 n_epochs = Int(floor((1e6 / length(dataset)) * args["n_epochs_ref"]))
 save_freq = Int(floor(n_epochs / args["n_saves"]))
 
-for epoch in 1:n_epochs
-    logfile = open(joinpath(args["savepath"], "log2.txt"), "a")
+# for epoch in 1:n_epochs
+#     logfile = open(joinpath(args["savepath"], "log2.txt"), "a")
     
-    epoch_message = @sprintf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
-    println(epoch_message)
-    println(logfile, epoch_message)
+#     epoch_message = @sprintf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
+#     println(epoch_message)
+#     println(logfile, epoch_message)
 
-    loader = DataLoader(dataset; shuffle=true, batch_size=trainer_config["batch_size"])
-    for (it, batch) in enumerate(loader)
-        X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
-        # forward the model
-        total_loss = @diff losssum(model(X, Y, mask, terminal))
-        println("Loss #", it, ": ", value(total_loss))
-        println(logfile, "Loss #", it, ": ", value(total_loss))
+#     loader = DataLoader(dataset; shuffle=true, batch_size=trainer_config["batch_size"])
+#     for (it, batch) in enumerate(loader)
+#         X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
+#         # forward the model
+#         total_loss = @diff losssum(model(X, Y, mask, terminal))
+#         println("Loss #", it, ": ", value(total_loss))
+#         println(logfile, "Loss #", it, ": ", value(total_loss))
         
-        if isnan(value(total_loss))
-            println(logfile, "NaN loss!!")
-            return
-        end
+#         if isnan(value(total_loss))
+#             println(logfile, "NaN loss!!")
+#             return
+#         end
 
-        for p in paramlist(model)
-            update!(p, grad(total_loss, p))
-        end
+#         for p in paramlist(model)
+#             update!(p, grad(total_loss, p))
+#         end
 
-        zerograd_embedding(model)
+#         zerograd_embedding(model)
 
-        if it % 100 == 1
-            message = @sprintf(
-                "[ utils/training ] epoch %d [ %d / %d ] train loss %.5f",
-                n_epochs,
-                it-1,
-                length(loader),
-                value(total_loss),
-            )
-            println(message)
-            println(logfile, message)
-        end
-    end
-    close(logfile)
-    
-    save_epoch = (epoch + 1) ÷ save_freq * save_freq
-    statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
-    Knet.save(statepath, "model", model)
-    println("Saved model to $statepath")
-end
+#         if it % 100 == 1
+#             message = @sprintf(
+#                 "[ utils/training ] epoch %d [ %d / %d ] train loss %.5f",
+#                 n_epochs,
+#                 it-1,
+#                 length(loader),
+#                 value(total_loss),
+#             )
+#             println(message)
+#             println(logfile, message)
+#         end
+#     end
+#     close(logfile)
+
+#     save_epoch = (epoch + 1) ÷ save_freq * save_freq
+#     statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
+#     Knet.save(statepath, "model", model)
+#     println("Saved model to $statepath")
+# end
