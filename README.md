@@ -11,14 +11,12 @@ This version is being implemented by Enes Erciyes for the Koç University Comp 5
 * Add this path to LD_LIBRARY_PATH in your shell init script. 
 * Add `PyCall` and `Conda` in your Julia environment.
 * Inside a Julia REPL, set `ENV["PYTHON"] = ""` and run `using PyCall`. This will set up a conda environment called `conda_jl`. 
-* Inside a Julia REPL, run `Conda.add("mesalib"; channel="conda-forge")`
+
+* Inside a Julia REPL, run `Conda.add("glew"; channel="conda-forge")` and `Conda.add("mesalib"; channel="conda-forge")`.
 * Then, run `Conda.pip_interop(true)` to be able to install pip dependencies.
-* Install the pip dependencies using `Conda.pip(install, "DEP")`. Dependencies are given below:
+* Install the pip dependencies using:
 ```
-- mujoco-py==2.1.2.14
-- git+https://github.com/JannerM/d4rl.git@c3dd04da02acbf4de6cbaa1141deb4f958f03ca9
-- dm_control
-- git+https://github.com/aravindr93/mjrl@3871d93763d3b49c4741e6daeaebbc605fe140dc
+Conda.pip("install", ["mujoco-py==2.1.2.14", "git+https://github.com/JannerM/d4rl.git@c3dd04da02acbf4de6cbaa1141deb4f958f03ca9", "dm_control", "git+https://github.com/aravindr93/mjrl@3871d93763d3b49c4741e6daeaebbc605fe140dc"])
 ```
 * Outside the Julia REPL, run
 ```bash
