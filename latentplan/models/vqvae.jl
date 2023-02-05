@@ -100,7 +100,7 @@ function straight_through(v::VQEmbeddingMovingAverage, z_e_x, train::Bool=true)
         v.ema_count = v.decay .* v.ema_count + (1 - v.decay) .* sum(encodings, dims=2)[:, 1]
         dw = reshape(z_e_x, (D, :)) * transpose(encodings) 
         v.ema_w = v.decay .* v.ema_w + (1 - v.decay) .* dw
-        v.embedding = v.ema_w ./ reshape(v.ema_count, (1, :))
+        v.embedding = v.ema_w ./ (reshape(v.ema_count, (1, :)) .+ 1e-10)
     end
 
     z_q_x_bar_flatten = v.embedding[:, indices]

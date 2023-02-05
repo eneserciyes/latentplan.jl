@@ -154,7 +154,7 @@ model = Knet.load(joinpath(args["savepath"], "state_0.jld2"), "model")
 println("Checkpoint loaded")
 
 for epoch in 1:n_epochs
-    logfile = open(joinpath(args["savepath"], "log-working.txt"), "a")
+    logfile = open(joinpath(args["savepath"], "log-working-eps-for-embedding-decay.txt"), "a")
     
     epoch_message = @sprintf("\nEpoch: %d / %d | %s | %s\n", epoch, n_epochs, env_name, args["exp_name"])
     println(epoch_message)
@@ -162,22 +162,33 @@ for epoch in 1:n_epochs
 
     loader = DataLoader(dataset; shuffle=true, batch_size=trainer_config["batch_size"])
     for (it, batch) in enumerate(loader)
+        
         X, Y, mask, terminal = atype(batch[1]), atype(batch[2]), atype(batch[3]), atype(batch[4])
         # forward the model
         total_loss = @diff losssum(model(X, Y, mask, terminal))
-        println("Loss #", it, ": ", value(total_loss))
-        println(logfile, "Loss #", it, ": ", value(total_loss))
+        
+        #println("Loss #", it, ": ", value(total_loss))
+        #println(logfile, "Loss #", it, ": ", value(total_loss))
+
+        #if it == 452 || it == 453
+        #    Knet.save(joinpath(args["savepath"], "nan_model_4-$it.jld2"), "model", model, "batch", batch)
+        #    println("Saving $it model")
+        #end
+        
         if isnan(value(total_loss))
             println(logfile, "NaN loss!!")
-            # Knet.save(joinpath(args["savepath"], "nan_model_3.jld2"), "model", model, "prev_model", prev_model, "batch", batch, "prev_batch", prev_batch)
+            Knet.save(joinpath(args["savepath"], "nan_model_4.jld2"), "model", model, "batch", batch)
             return
         end
+        
         for p in paramlist(model)
             update!(p, grad(total_loss, p))
         end
-
+        
         zerograd_embedding(model)
-
+        
+        # prev_model = deepcopy(model)
+        # prev_batch = batch
         if it % 100 == 1
             message = @sprintf(
                 "[ utils/training ] epoch %d [ %d / %d ] train loss %.5f",
@@ -193,7 +204,7 @@ for epoch in 1:n_epochs
     close(logfile)
     
     save_epoch = (epoch + 1) ÷ save_freq * save_freq
-    statepath = joinpath(args["savepath"], "state_$save_epoch.jld2")
+    statepath = joinpath(args["savepath"], "asdfstate_$save_epoch.jld2")
     Knet.save(statepath, "model", model)
     println("Saved model to $statepath")
 end
