@@ -428,7 +428,7 @@ end
 
 
 mutable struct TransformerPrior
-    tok_emb::Embedding
+    tok_emb::Param
     pos_emb::Param
     state_emb::Linear
     drop::Dropout
@@ -441,7 +441,8 @@ mutable struct TransformerPrior
     embedding_dim
 
     function TransformerPrior(config)
-        tok_emb = Embedding(config["n_embd"], config["K"])
+
+        tok_emb = Param(atype(rand(Uniform(-1/config["K"], 1/config["K"]), (config["n_embd"], config["K"]))))
         pos_emb = Param(atype(zeros(Float32, config["block_size"], config["n_embd"], 1)))
         state_emb = Linear(config["observation_dim"], config["n_embd"])
         drop = Dropout(config["embd_pdrop"])
