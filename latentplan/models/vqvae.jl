@@ -349,7 +349,7 @@ function encode(v::VQContinuousVAE, joined_inputs, terminals)
     terminal_mask = repeat_broadcast(deepcopy(1 .- terminals), size(joined_inputs, 1), 1, 1)
     joined_inputs = joined_inputs .* terminal_mask .+ padded .* (1 .- terminal_mask)
 
-    trajectory_feature = encode(v.model, cat((joined_inputs, terminals), dims=1))
+    trajectory_feature = encode(v.model, cat(joined_inputs, terminals, dims=1))
     if v.model.ma_update
         indices = vq(trajectory_feature, v.model.codebook.embedding)
     else
@@ -458,32 +458,33 @@ mutable struct TransformerPrior
     end
 end
 
-function (t::TransformerPrior)(idx, state, targets=nothing)
+function (tp::TransformerPrior)(idx, state, targets=nothing)
     if !(idx === nothing)
         t, b = size(idx)
-        @assert t <= t.block_size  "Cannot forward, model block size is exhausted."
-        token_embeddings = t.tok_emb(idx) # each index maps to a (learnable) vector
-        token_embeddings = cat(atype(zeros(Float32, t.embedding_dim, 1, b)), token_embeddings, dims=2)
+        @assert t <= tp.block_size  "Cannot forward, model block size is exhausted."
+        token_embeddings = model.tok_emb[:, indices[1:end-1, :]] # each index maps to a (learnable) vector
+        token_embeddings = cat(atype(zeros(Float32, model.embedding_dim, 1, b)), token_embeddings, dims=2); 
     else
         b = 1; t =0
-        token_embeddings = atype(zeros(t.embedding_dim, 1, b))
+        token_embeddings = atype(zeros(tp.embedding_dim, 1, b))
     end
 
     ## [ embedding_dim x T+1 x 1 ]
-    position_embeddings = t.pos_emb[:, 1:t+1, :]
-    state_embeddings = reshape(t.state_emb(state), 1, :)
+    position_embeddings = tp.pos_emb[:, 1:t+1, :]
+    state_embeddings = model.state_emb(states)
+    state_embeddings = reshape(state_embeddings, size(state_embeddings)[1], 1, size(state_embeddings)[2:end]...);
     ## [ embedding_dim x T+1 x 1 ]
-    x = t.drop(token_embeddings .+ position_embeddings .+ state_embeddings)
-    x = t.blocks(x)
+    x = tp.drop(token_embeddings .+ position_embeddings .+ state_embeddings)
+    x = tp.blocks(x)
     ## [ embedding_dim x T+1 x 1 ]
-    x = t.ln_f(x)
+    x = tp.ln_f(x)
 
-    logits = t.head(x)
-    logits = reshape(logits, (t.vocab_size, t+1, b))
-    logits = logits[:, 1:t+1]
+    logits = tp.head(x)
+    logits = reshape(logits, (tp.vocab_size, t+1, b))
+    logits = logits[:, 1:t+1, :]
 
     if !(targets === nothing)
-        logits = reshape(logits, t.vocab_size, :)
+        logits = reshape(logits, tp.vocab_size, :)
         targets = reshape(targets, :)
         loss = nll(logits, targets)
     else
