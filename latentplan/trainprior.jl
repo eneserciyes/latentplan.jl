@@ -7,72 +7,6 @@ using JSON
 
 include("LPCore.jl")
 include("setup.jl")
-using .LPCore
-
-function prior_train(config, representation::VQContinuousVAE, model::TransformerPrior, dataset::SequenceDataset; n_epochs=1, log_freq=100)
-    # set optimizers
-    opt_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=config["weight_decay"], gclip=config["grad_norm_clip"])
-    opt_no_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=0.0, gclip=config["grad_norm_clip"])
-
-    for p in paramlist_decay(model)
-        p.opt = clone(opt_decay)
-    end
-    for p in paramlist_no_decay(model)
-        p.opt = clone(opt_no_decay)
-    end
-
-    n_tokens = 0
-    loader = DataLoader(dataset; shuffle=true, batch_size=config["batch_size"])
-
-    for epoch in 1:n_epochs
-        losses = []
-        for (it, batch) in enumerate(loader)
-            y = batch[end-1]
-            n_tokens += prod(size(y))
-
-            if n_tokens < config["warmup_tokens"]
-                # linear warmup
-                lr_mult = float(n_tokens) / float(max(1, config["warmup_tokens"]))
-            else
-                # cosine learning rate decay
-                progress = float(n_tokens - config["warmup_tokens"]) / float(
-                    max(1, config["final_tokens"] - config["warmup_tokens"])
-                )
-                lr_mult = max(0.1, 0.5 * (1.0 + cos(pi * progress)))
-            end
-
-            if config["lr_decay"]
-                lr = config["learning_rate"] * lr_mult
-                for p in paramlist(model)
-                    p.opt.lr = lr
-                end
-            else
-                lr = config["learning_rate"]
-            end
-            
-            states = batch[1][1:model.observation_dim, 1, :]
-            indices = encode(representation, batch[1], batch[end])
-            # forward the model
-            total_loss = @diff model(indices[1:end-1,:], states, indices)
-            push!(losses, value(total_loss))
-            for p in paramlist(model)
-                update!(p, grad(total_loss, p))
-            end
-
-            # report progress
-            if it % log_freq == 0
-                @printf(
-                    "[ utils/training ] epoch %d [%d / %d] train loss %.5f, lr %.3e\n",
-                    epoch,
-                    it,
-                    len(loader)
-                    value(total_loss),
-                    lr,
-                )
-            end
-        end
-    end
-end
 
 s = ArgParseSettings()
 @add_arg_table! s begin
@@ -102,10 +36,11 @@ args = parser(super_args, experiment="plan")
 
 args["logbase"] = expanduser(args["logbase"])
 args["savepath"] = expanduser(args["savepath"])
+args["loadpath"] = joinpath(args["logbase"], args["dataset"], args["exp_name"])
 
 env_name = occursin("-v", args["dataset"]) ? args["dataset"] : args["dataset"] * "-v0"
 
-dataset_config = Knet.load(joinpath(args["savepath"], "dataset_config.jld2"), "config")
+dataset_config = Knet.load(joinpath(args["loadpath"] , "dataset_config.jld2"), "config")
 
 dataset = SequenceDataset(
     dataset_config["env_name"];
@@ -125,13 +60,13 @@ act_dim = dataset.action_dim
 transition_dim = dataset.joined_dim+1
 
 gpt_epoch = args["gpt_epoch"]
-representation = Knet.load(joinpath(args["savepath"], "state_$gpt_epoch.jld2"))
+representation = Knet.load(joinpath(args["loadpath"], "state_$gpt_epoch.jld2"))
 # representation.padding_vector = normalize_joined_single(dataset, atype(zeros(Float32, representation.transition_dim-1)))
 
 args = parser(super_args, experiment="train")
 args["logbase"] = expanduser(args["logbase"])
 args["savepath"] = expanduser(args["savepath"])
-block_size = args.subsampled_sequence_length ÷ args.latent_step
+block_size = args["subsampled_sequence_length"] ÷ args["latent_step"]
 obs_dim = dataset.observation_dim
 
 model_config = deepcopy(args)
@@ -190,7 +125,7 @@ for epoch in 1:n_epochs
         states = X[1:model.observation_dim, 1, :]
         indices = encode(representation, X, terminal)
         
-        total_loss = @diff model(indices[1:end-1,:], states, indices)
+        total_loss = @diff model(indices[1:end-1,:], states, indices)[2]
         
         if isnan(value(total_loss))
             println(logfile, "NaN loss!!")
