@@ -443,7 +443,7 @@ mutable struct TransformerPrior
     function TransformerPrior(config)
 
         tok_emb = Param(atype(rand(Uniform(-1/config["K"], 1/config["K"]), (config["n_embd"], config["K"]))))
-        pos_emb = Param(atype(zeros(Float32, config["block_size"], config["n_embd"], 1)))
+        pos_emb = Param(atype(zeros(Float32, config["n_embd"], config["block_size"], 1)))
         state_emb = Linear(config["observation_dim"], config["n_embd"])
         drop = Dropout(config["embd_pdrop"])
         blocks = Chain([Block(config) for _ in 1:config["n_layer"]]...)
@@ -462,8 +462,8 @@ function (tp::TransformerPrior)(idx, state, targets=nothing)
     if !(idx === nothing)
         t, b = size(idx)
         @assert t <= tp.block_size  "Cannot forward, model block size is exhausted."
-        token_embeddings = model.tok_emb[:, indices[1:end-1, :]] # each index maps to a (learnable) vector
-        token_embeddings = cat(atype(zeros(Float32, model.embedding_dim, 1, b)), token_embeddings, dims=2); 
+        token_embeddings = model.tok_emb[:, idx] # each index maps to a (learnable) vector
+        token_embeddings = cat(atype(zeros(Float32, model.embedding_dim, 1, b)), token_embeddings, dims=2)
     else
         b = 1; t =0
         token_embeddings = atype(zeros(tp.embedding_dim, 1, b))
@@ -471,8 +471,8 @@ function (tp::TransformerPrior)(idx, state, targets=nothing)
 
     ## [ embedding_dim x T+1 x 1 ]
     position_embeddings = tp.pos_emb[:, 1:t+1, :]
-    state_embeddings = model.state_emb(states)
-    state_embeddings = reshape(state_embeddings, size(state_embeddings)[1], 1, size(state_embeddings)[2:end]...);
+    state_embeddings = model.state_emb(state)
+    state_embeddings = reshape(state_embeddings, size(state_embeddings)[1], 1, size(state_embeddings)[2:end]...)
     ## [ embedding_dim x T+1 x 1 ]
     x = tp.drop(token_embeddings .+ position_embeddings .+ state_embeddings)
     x = tp.blocks(x)
@@ -490,5 +490,29 @@ function (tp::TransformerPrior)(idx, state, targets=nothing)
     else
         loss = nothing
     end
-    return logits, loss
+    return loss
 end
+
+paramlist(tp::TransformerPrior) = begin
+    model_params = collect(Param,
+        Iterators.flatten(
+            paramlist.([tp.state_emb, tp.blocks, tp.ln_f, tp.head])
+        )
+    )
+    push!(model_params, tp.pos_emb)
+    push!(model_params, tp.tok_emb)
+    model_params
+end
+paramlist_no_decay(tp::TransformerPrior) = begin
+    model_params = collect(Param,
+        Iterators.flatten(
+            paramlist_no_decay.([tp.state_emb, tp.blocks, tp.ln_f, tp.head])
+        )
+    )
+    push!(model_params,tp.pos_emb)
+    push!(model_params,tp.tok_emb)
+    model_params
+end
+paramlist_decay(tp::TransformerPrior) = Iterators.flatten(
+    paramlist_decay.([tp.state_emb, tp.blocks, tp.ln_f, tp.head]),
+)

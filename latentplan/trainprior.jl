@@ -60,7 +60,7 @@ act_dim = dataset.action_dim
 transition_dim = dataset.joined_dim+1
 
 gpt_epoch = args["gpt_epoch"]
-representation = Knet.load(joinpath(args["loadpath"], "state_$gpt_epoch.jld2"))
+representation = Knet.load(joinpath(args["loadpath"], "state_$gpt_epoch.jld2"), "model")
 # representation.padding_vector = normalize_joined_single(dataset, atype(zeros(Float32, representation.transition_dim-1)))
 
 args = parser(super_args, experiment="train")
@@ -95,8 +95,8 @@ trainer_config = Dict(
 ###### main loop ######
 #######################
 # set optimizers
-opt_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=config["weight_decay"], gclip=config["grad_norm_clip"])
-opt_no_decay = AdamW(lr=config["learning_rate"], beta1=config["betas"][1], beta2=config["betas"][2], weight_decay=0.0, gclip=config["grad_norm_clip"])
+opt_decay = AdamW(lr=trainer_config["learning_rate"], beta1=trainer_config["betas"][1], beta2=trainer_config["betas"][2], weight_decay=trainer_config["weight_decay"], gclip=trainer_config["grad_norm_clip"])
+opt_no_decay = AdamW(lr=trainer_config["learning_rate"], beta1=trainer_config["betas"][1], beta2=trainer_config["betas"][2], weight_decay=0.0, gclip=trainer_config["grad_norm_clip"])
 
 for p in paramlist_decay(model)
     p.opt = clone(opt_decay)
@@ -125,8 +125,8 @@ for epoch in 1:n_epochs
         states = X[1:model.observation_dim, 1, :]
         indices = encode(representation, X, terminal)
         
-        total_loss = @diff model(indices[1:end-1,:], states, indices)[2]
-        
+        total_loss = @diff model(indices[1:end-1,:], states, indices)
+        println("Loss #$it: ", value(total_loss))
         if isnan(value(total_loss))
             println(logfile, "NaN loss!!")
             return
