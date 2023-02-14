@@ -92,7 +92,7 @@ export Plan
     discrete = false
     logbase= logbase
     gpt_loadpath= gpt_expname
-    gpt_epoch= "latest"
+    gpt_epoch= "123"
     device= "cuda"
     renderer= "Renderer"
     suffix= "0"
