@@ -220,6 +220,7 @@ function denormalize_joined(s::SequenceDataset, joined)
 end
 
 function normalize_states(s::SequenceDataset, states)
+    return (states .- s.atype(s.obs_mean)) ./ (s.atype(s.obs_std) .+ 1e-8)
 end
 
 function denormalize_states(s::SequenceDataset, states)
