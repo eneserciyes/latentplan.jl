@@ -6,6 +6,7 @@ gpt_3layer.pt
 gpt_weights_hopper.pt
 gpt_trained.pt
 prior_model.pt
+prior_trained.pt
 obs.npy
 next_obs.npy
 *.txt
