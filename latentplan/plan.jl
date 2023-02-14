@@ -7,7 +7,6 @@ using JSON
 
 include("LPCore.jl")
 include("setup.jl")
-using .LPCore
 
 s = ArgParseSettings()
 @add_arg_table! s begin
@@ -41,32 +40,34 @@ end
 super_args = parse_args(ARGS, s)
 args = parser(super_args, experiment="plan")
 
+args["logbase"] = expanduser(args["logbase"])
+args["savepath"] = expanduser(args["savepath"])
+args["loadpath"] = joinpath(args["logbase"], args["dataset"], args["exp_name"])
+
 #######################
 ####### models ########
 #######################
 
 env = load_environment(args["dataset"])
-sequence_length = args["subsampled_sequence_length"] * args["step"]
+dataset_config = Knet.load(joinpath(args["loadpath"] , "dataset_config.jld2"), "config")
 
 dataset = SequenceDataset(
-    env_name;
-    penalty=args["termination_penalty"], 
-    sequence_length=sequence_length, 
-    step=args["step"], 
-    discount=args["discount"], 
-    disable_goal=args["disable_goal"], 
-    normalize_raw=args["normalize"], 
-    normalize_reward=args["normalize_reward"],
-    max_path_length=args["max_path_length"],
-    atype=atype
+    dataset_config["env_name"];
+    penalty=dataset_config["penalty"],
+    sequence_length=dataset_config["sequence_length"], 
+    step=dataset_config["step"], 
+    discount=dataset_config["discount"], 
+    disable_goal=dataset_config["disable_goal"], 
+    normalize_raw=dataset_config["normalize_raw"], 
+    normalize_reward=dataset_config["normalize_reward"],
+    max_path_length=dataset_config["max_path_length"],
+    atype=dataset_config["atype"]
 )
 
 gpt_epoch = args["gpt_epoch"]
-gpt = Knet.load(joinpath(args["savepath"], "state_$gpt_epoch.jld2"))
 
-prior = Knet.load(joinpath(args["savepath"], "prior_state_$gpt_epoch.jld2"))
-
-gpt.padding_vector = normalize_joined_single(dataset, atype(zeros(Float32, gpt.transition_dim-1)))
+gpt = Knet.load(joinpath(args["loadpath"], "state_$gpt_epoch.jld2"))
+prior = Knet.load(joinpath(args["loadpath"], "prior_state_$gpt_epoch.jld2"))
 
 discount = dataset.discount
 observation_dim = dataset.observation_dim
