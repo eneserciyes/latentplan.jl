@@ -443,7 +443,7 @@ mutable struct TransformerPrior
     function TransformerPrior(config)
 
         tok_emb = Param(atype(rand(Uniform(-1/config["K"], 1/config["K"]), (config["n_embd"], config["K"]))))
-        pos_emb = Param(atype(zeros(Float32, config["block_size"], config["n_embd"], 1)))
+        pos_emb = Param(atype(zeros(Float32, config["n_embd"], config["block_size"], 1)))
         state_emb = Linear(config["observation_dim"], config["n_embd"])
         drop = Dropout(config["embd_pdrop"])
         blocks = Chain([Block(config) for _ in 1:config["n_layer"]]...)
@@ -516,3 +516,4 @@ end
 paramlist_decay(tp::TransformerPrior) = Iterators.flatten(
     paramlist_decay.([tp.state_emb, tp.blocks, tp.ln_f, tp.head]),
 )
+
