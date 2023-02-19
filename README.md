@@ -29,3 +29,29 @@ using PyCall
 d4rl = pyimport("d4rl")
 ```
 NOTE: Flow and CARLA environments are not used here, therefore they are not included in the setup.
+
+# Using pretrained checkpoints
+
+Download the main model, prior model and dataset config from these links:
+
+Main model: [Drive link](https://drive.google.com/file/d/1oBLW_ZyU09iM-Lq7ugoEvEq2rqskwgwF/view?usp=share_link)
+
+Prior model: [Drive link](https://drive.google.com/file/d/1seNqrqWRMBRqDUE-JtsIZRxgB955DQNk/view?usp=share_link)
+
+Dataset config: [Drive link](https://drive.google.com/file/d/1hbUz58Q_cHyhXy67Kg_-shF8S1pJz7HW/view?usp=share_link)
+
+Make the following directory and put the files there:
+
+```
+~/logs_julia/hopper-medium-replay-v2/T-1-1/
+```
+
+Run the following command:
+
+```bash
+for i in {2..20};
+do
+    julia --project=.. plan.jl --dataset hopper-medium-replay-v2 --exp_name T-1-1 --suffix $i --n_expand 4 --beam_width 64 --horizon 15
+done
+```
+
