@@ -227,6 +227,17 @@ function denormalize_states(s::SequenceDataset, states)
 end
 
 function denormalize_values(s::SequenceDataset, values)
+    if (!s.normalize_reward || !s.normalized_raw)
+        return values
+    end
+    return values .* s.value_std .+ s.value_mean
+end
+
+function denormalize_rewards(s::SequenceDataset, rewards)
+    if (!s.normalize_reward || !s.normalized_raw)
+        return rewards
+    end
+    return rewards .* s.reward_std .+ s.reward_mean
 end
 
 function Base.length(s::SequenceDataset)
