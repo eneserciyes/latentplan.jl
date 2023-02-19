@@ -2,8 +2,8 @@ using PyCall
 
 torch = @pyimport torch
 
-function beam_with_prior(prior, model, x, dataset, discount, steps,
-                    beam_width, n_expand, prob_threshold=0.05, likelihood_weight=5e2, prob_acc="product", return_info=false)
+function beam_with_prior(prior, model, x, dataset; discount, steps,
+                    beam_width, n_expand, prob_threshold=0.05, likelihood_weight=5e2, return_info=false)
    contex = nothing
    state = x[1:prior.observation_dim, 1, :]
    acc_probs = atype(zeros(1))

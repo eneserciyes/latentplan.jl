@@ -34,6 +34,42 @@ s = ArgParseSettings()
 end
 
 #######################
+####### util functions ########
+#######################
+
+function make_prefix(obs, transition_dim)
+    obs_discrete = atype(obs)
+    pad_dims = atype(zeros(transition_dim - size(obs_discrete, 1)))
+    if ndims(obs_discrete) == 2
+        obs_discrete = reshape(obs_discrete, :, 1, 1)
+        pad_dims = reshape(pad_dims, :, 1, 1)
+    end
+    transition = cat(obs_discrete, pad_dims, dims=1)
+    prefix = transition
+    return prefix
+end
+
+function extract_actions(x, observation_dim, action_dim; t=nothing)
+    actions =  x[observation_dim:observation_dim+action_dim, :]
+    if t !== nothing
+        return actions[:, t]
+    else
+        return actions
+    end
+end
+
+VALUE_PLACEHOLDER = 1e6
+function update_context(observation, action, reward)
+    rew_val = [reward; VALUE_PLACEHOLDER]
+    transition = cat(observation, action, rew_val; dims=1)
+    context = []
+    transition_discrete = atype(transition)
+    transition_discrete = reshape(transition_discrete, :, 1, 1)
+    push!(context, transition_discrete)
+    return context
+end
+
+#######################
 ####### setup ########
 #######################
 
@@ -92,7 +128,7 @@ if occursin("antmaze", env.name)
         rollout = [cat(deepcopy(env.state_vector()), env.target_goal; dims=1)]
     end
 else
-    rollout = [deepcopy(env.state_vector())] # TODO: what does concatenate do here?
+    rollout = [deepcopy(env.state_vector())]
 end
 
 ## previous (tokenized) transitions for conditioning transformer
@@ -102,42 +138,39 @@ mses = []
 T = env.max_episode_steps
 
 for t in 1:T
-    # TODO: observation preprocess
     state = env.state_vector()
 
     if dataset.normalized_reward
-        observation = normalize_states(dataset, observation) # TODO: implement normalize_states
+        observation = normalize_states(dataset, observation)
     end
 
     if t % args["plan_freq"] == 1
-        prefix = make_prefix(observation, transition_dim) # TODO: implement and index
-        #TODO: implement beam with prior
+        prefix = make_prefix(observation, transition_dim)
         sequence = beam_with_prior(
-            prior, gpt, prefix; 
-            denormalize_rew=dataset.denormalize_reward,
+            prior, gpt, prefix, dataset,
+            discount = discount,
             steps = args["horizon"],
             beam_width = args["beam_width"],
             n_expand = args["n_expand"],
             likelihood_weight = args["prob_weight"],
             prob_threshold = args["prob_threshold"],
-            discount = discount
-        )
+        ) # [17 x 3]
     else
-        sequence = sequence[2:end]
+        sequence = sequence[:, 2:end]
     end
 
     if (t == 1)
-        first_value = denormalize_values(dataset, sequence[2,end]) # TODO: index check
-        first_search_value = denormalize_values(dataset, sequence[2,1]) # TODO: index check
+        first_value = denormalize_values(dataset, sequence[end-1, 1])
+        first_search_value = denormalize_values(dataset, sequence[end-1,end])
     end
-    println(denormalize_values(dataset, sequence[2,end])) # TODO: index check
+    println(denormalize_values(dataset, sequence[end-1, 1]))
     
     ## [ transition_dim x horizon ] convert sampled tokens to continuous latentplan
     sequence_recon = sequence
     
     ## [ action_dim ] index into sampled latentplan to grab first action
     feature_dim = dataset.observation_dim
-    action = extract_actions(sequence_recon, feature_dim, action_dim, t=0) # TODO: implement
+    action = extract_actions(sequence_recon, feature_dim, action_dim; t=0) 
     if dataset.normalized_raw
         action = denormalize_actions(dataset, action)
         sequence_recon = denormalize_joined(dataset, sequence_recon)
@@ -153,10 +186,14 @@ for t in 1:T
     score = env.get_normalized_score(total_reward)
     
     push!(rollout, deepcopy(state))
-    context = update_context(observation, action, reward) #TODO: implement
+    context = update_context(observation, action, reward)
     @printf("[ plan ] t: $t / $T | r: $reward | R: $total_reward | score: $score | time: | %s | %s | %s\n", args["dataset"], args["exp_name"], args["suffix"])
 
-    # add viz
+    # TODO: add viz
+    if terminal
+        break
+    end
+    observation = next_observation
 end
 
 # save result as a json file

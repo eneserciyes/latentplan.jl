@@ -223,7 +223,8 @@ function normalize_states(s::SequenceDataset, states)
     return (states .- s.atype(s.obs_mean)) ./ (s.atype(s.obs_std) .+ 1e-8)
 end
 
-function denormalize_states(s::SequenceDataset, states)
+function denormalize_actions(s::SequenceDataset, actions)
+    return actions .* s.act_std .+ s.act_mean
 end
 
 function denormalize_values(s::SequenceDataset, values)
