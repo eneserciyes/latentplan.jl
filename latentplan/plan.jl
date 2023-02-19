@@ -50,7 +50,7 @@ function make_prefix(obs, transition_dim)
 end
 
 function extract_actions(x, observation_dim, action_dim; t=nothing)
-    actions =  x[observation_dim:observation_dim+action_dim, :]
+    actions =  x[observation_dim+1:observation_dim+action_dim, :]
     if t !== nothing
         return actions[:, t]
     else
@@ -182,12 +182,12 @@ for t in 1:T
 
     ## update return
     total_reward += reward
-    discount_return += reward .* discount ^ (t-1)
+    discount_return += reward * (discount ^ (t-1))
     score = env.get_normalized_score(total_reward)
     
     push!(rollout, deepcopy(state))
     context = update_context(observation, action, reward)
-    @printf("[ plan ] t: $t / $T | r: $reward | R: $total_reward | score: $score | time: | %s | %s | %s\n", args["dataset"], args["exp_name"], args["suffix"])
+    @printf("[ plan ] t: %d / %d | r: %.2f | R: %.2f | score: %.4f | time: | %s | %s | %s\n", t, T, reward, total_reward, score, args["dataset"], args["exp_name"], args["suffix"])
 
     # TODO: add viz
     if terminal
@@ -207,7 +207,7 @@ json_data = Dict(
     "first_value" => first_value,
     "first_search_value" => first_search_value,
     "discount_return" => discount_return,
-    "prediction_error" => mean(mses)
+    # "prediction_error" => mean(mses)
 )
 open(json_path, "w") do io
     JSON.print(io, json_data)

@@ -196,10 +196,10 @@ struct SequenceDataset;
 end
 
 function denormalize(s::SequenceDataset, states, actions, rewards, values)
-    states = states .* s.obs_std + s.obs_mean
-    actions = actions .* s.act_std + s.act_mean
-    rewards = rewards .* s.reward_std + s.reward_mean
-    values = values .* s.value_std + s.value_mean
+    states = states .* s.obs_std .+ s.obs_mean
+    actions = actions .* s.act_std .+ s.act_mean
+    rewards = rewards .* s.reward_std .+ s.reward_mean
+    values = values .* s.value_std .+ s.value_mean
 
     return states, actions, rewards, values
 end
@@ -212,11 +212,11 @@ end
 
 function denormalize_joined(s::SequenceDataset, joined)
     states = joined[1:s.observation_dim, :]
-    actions = joined[s.observation_dim:s.observation_dim+s.action_dim, :]
-    rewards = reshape(joined[end-2, :], 1, size(joined, 2), 1)
-    values = reshape(joined[end-1, :], 1, size(joined, 2), 1)
+    actions = joined[s.observation_dim+1:s.observation_dim+s.action_dim, :]
+    rewards = joined[end-2:end-2, :]
+    values = joined[end-1:end-1, :]
     results = denormalize(s, states, actions, rewards, values)
-    return cat(tuple(results..., reshape(joined[end, :], 1, size(joined, 2), 1)), dims=1)
+    return cat(results..., joined[end:end, :], dims=1)
 end
 
 function normalize_states(s::SequenceDataset, states)

@@ -1,6 +1,5 @@
 using PyCall
-
-torch = @pyimport torch
+@pyimport torch
 
 function beam_with_prior(prior, model, x, dataset; discount, steps,
                     beam_width, n_expand, prob_threshold=0.05, likelihood_weight=5e2, return_info=false)
@@ -8,20 +7,25 @@ function beam_with_prior(prior, model, x, dataset; discount, steps,
    state = x[1:prior.observation_dim, 1, :]
    acc_probs = atype(zeros(1))
    info = Dict();
+   index = nothing
+   prediction_raw=nothing
+   values=nothing
    for step in 0:(steps÷model.latent_step)-1
       logits, _ = prior(contex, state)
-      probs = softmax(logits, dims=1)
+      probs = softmax(logits[:, end, :], dims=1)
       log_probs = log.(probs)
       nb_samples = step==0 ? beam_width * n_expand : n_expand
       samples = torch.multinomial(torch.tensor(probs'), num_samples=nb_samples, replacement=true).numpy()' .+ 1
-      samples_log_prob = [reshape(a[i], size(a[i])..., 1) for (a, i) in zip(eachslice(log_probs, dims=2), eachslice(samples, dims=2))][1]
+      samples_log_prob = cat([reshape(a[i], size(a[i])..., 1) for (a, i) in zip(eachslice(log_probs, dims=2), eachslice(samples, dims=2))]..., dims=1)
 
       acc_probs = repeat_interleave(acc_probs, nb_samples) .+ reshape(samples_log_prob, :)
-      contex = reshape(samples, step+1, :)
-
+      if contex !== nothing
+         contex = cat(repeat_interleave(contex, 1, nb_samples, t=Array{eltype(contex)}), reshape(samples, 1, :); dims=1)
+      else
+         contex = reshape(samples, step+1, :)
+      end
       prediction_raw = decode_from_indices(model, contex, state)
       prediction = reshape(prediction_raw, model.action_dim+model.observation_dim+3, :)
-
       r_t = prediction[end-2, :]
       V_t = prediction[end-1, :]
       if dataset !== nothing
@@ -37,7 +41,7 @@ function beam_with_prior(prior, model, x, dataset; discount, steps,
       likelihood_bonus = likelihood_weight .* clip(acc_probs, -1e5, log(prob_threshold)*(steps÷model.latent_step))
       nb_top = step < steps ÷ model.latent_step - 1 ? beam_width : 1
       
-      values_with_b, index = torch.topk(values.+likelihood_bonus, nb_top)
+      values_with_b, index = torch.topk(torch.tensor(values.+likelihood_bonus), nb_top)
       values_with_b = values_with_b.numpy()
       index = index.numpy()
       index.+=1
@@ -55,7 +59,7 @@ function beam_with_prior(prior, model, x, dataset; discount, steps,
       acc_probs = acc_probs[index]
    end
    optimal = prediction_raw[:,:,index[1]]
-   print("predicted max value $(values[1])")
+   println("predicted max value $(values[1])")
    if return_info
       return cputype(optimal), info
    else
