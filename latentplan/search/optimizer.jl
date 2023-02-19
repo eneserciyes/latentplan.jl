@@ -15,8 +15,8 @@ function beam_with_prior(prior, model, x, dataset; discount, steps,
       probs = softmax(logits[:, end, :], dims=1)
       log_probs = log.(probs)
       nb_samples = step==0 ? beam_width * n_expand : n_expand
-      samples = torch.multinomial(torch.tensor(probs'), num_samples=nb_samples, replacement=true).numpy()' .+ 1
-      samples_log_prob = cat([reshape(a[i], size(a[i])..., 1) for (a, i) in zip(eachslice(log_probs, dims=2), eachslice(samples, dims=2))]..., dims=1)
+      samples = torch.multinomial(torch.tensor(cputype(probs)'), num_samples=nb_samples, replacement=true).numpy()' .+ 1
+      samples_log_prob = atype(cat([reshape(a[i], size(a[i])..., 1) for (a, i) in zip(eachslice(cputype(log_probs), dims=2), eachslice(samples, dims=2))]..., dims=1))
 
       acc_probs = repeat_interleave(acc_probs, nb_samples) .+ reshape(samples_log_prob, :)
       if contex !== nothing
@@ -35,13 +35,13 @@ function beam_with_prior(prior, model, x, dataset; discount, steps,
          V_t = reshape(denormalize_values(dataset, V_t), :, size(contex, ndims(contex)))
       end
 
-      discounts = cumprod(atype(ones(size(r_t)...)) .* discount, dims=1)
+      discounts = atype(cumprod(ones(size(r_t)...) .* discount, dims=1))
       values = dropdims_n(sum(r_t[1:end-1, :] .* discounts[1:end-1, :], dims=1), dims=(1,)) .+ V_t[end, :] .* discounts[end, :]
 
       likelihood_bonus = likelihood_weight .* clip(acc_probs, -1e5, log(prob_threshold)*(steps÷model.latent_step))
       nb_top = step < steps ÷ model.latent_step - 1 ? beam_width : 1
       
-      values_with_b, index = torch.topk(torch.tensor(values.+likelihood_bonus), nb_top)
+      values_with_b, index = torch.topk(torch.tensor(cputype(values.+likelihood_bonus)), nb_top)
       values_with_b = values_with_b.numpy()
       index = index.numpy()
       index.+=1

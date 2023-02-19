@@ -196,8 +196,8 @@ struct SequenceDataset;
 end
 
 function denormalize(s::SequenceDataset, states, actions, rewards, values)
-    states = states .* s.obs_std .+ s.obs_mean
-    actions = actions .* s.act_std .+ s.act_mean
+    states = states .* s.atype(s.obs_std) .+ s.atype(s.obs_mean)
+    actions = actions .* s.atype(s.act_std) .+ s.atype(s.act_mean)
     rewards = rewards .* s.reward_std .+ s.reward_mean
     values = values .* s.value_std .+ s.value_mean
 
@@ -211,6 +211,7 @@ function normalize_joined_single(s::SequenceDataset, joined)
 end
 
 function denormalize_joined(s::SequenceDataset, joined)
+    joined = s.atype(joined)
     states = joined[1:s.observation_dim, :]
     actions = joined[s.observation_dim+1:s.observation_dim+s.action_dim, :]
     rewards = joined[end-2:end-2, :]
@@ -220,16 +221,19 @@ function denormalize_joined(s::SequenceDataset, joined)
 end
 
 function normalize_states(s::SequenceDataset, states)
-    return (states .- s.atype(s.obs_mean)) ./ (s.atype(s.obs_std) .+ 1e-8)
+    return (s.atype(states) .- s.atype(s.obs_mean)) ./ (s.atype(s.obs_std) .+ 1e-8)
 end
 
 function denormalize_actions(s::SequenceDataset, actions)
-    return actions .* s.act_std .+ s.act_mean
+    return s.atype(actions) .* s.atype(s.act_std) .+ s.atype(s.act_mean)
 end
 
 function denormalize_values(s::SequenceDataset, values)
     if (!s.normalize_reward || !s.normalized_raw)
         return values
+    end
+    if isa(values, Array)
+        values = s.atype(values)
     end
     return values .* s.value_std .+ s.value_mean
 end
@@ -237,6 +241,9 @@ end
 function denormalize_rewards(s::SequenceDataset, rewards)
     if (!s.normalize_reward || !s.normalized_raw)
         return rewards
+    end
+    if isa(rewards, Array)
+        rewards = s.atype(rewards)
     end
     return rewards .* s.reward_std .+ s.reward_mean
 end
