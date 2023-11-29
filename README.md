@@ -2,8 +2,9 @@
 
 Unofficial Knet.jl implementation of the "[Efficient Planning in a Compact Latent Action Space](https://arxiv.org/abs/2208.10291)".
 
-This version is being implemented by Enes Erciyes for the Koç University Comp 541 Course. You can find the original implementation in [https://github.com/ZhengyaoJiang/latentplan](https://github.com/ZhengyaoJiang/latentplan).
+This version is implemented by Enes Erciyes for the Koç University Comp 541 Course. You can find the original implementation in [https://github.com/ZhengyaoJiang/latentplan](https://github.com/ZhengyaoJiang/latentplan).
 
+Tech report of the reproduction effort can be found [here](https://eneserciyes.github.io/assets/pdf/Comp541_LatentPlan_TechReport.pdf).
 
 ## Setting up D4RL and PyCall
 
