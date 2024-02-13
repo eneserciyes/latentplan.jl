@@ -4,7 +4,7 @@ Unofficial Knet.jl implementation of the "[Efficient Planning in a Compact Laten
 
 This version is implemented by Enes Erciyes for the Koç University Comp 541 Course. You can find the original implementation in [https://github.com/ZhengyaoJiang/latentplan](https://github.com/ZhengyaoJiang/latentplan).
 
-Tech report of the reproduction effort can be found [here](https://eneserciyes.github.io/assets/pdf/Comp541_LatentPlan_TechReport.pdf).
+Tech report of the reproduction effort can be found [here](https://eneserciyes.github.io/assets/pdf/LatentPlan_MLRep.pdf).
 
 ## Setting up D4RL and PyCall
 
